@@ -81,6 +81,8 @@ public final class LauncherSettingsActivity extends Activity {
                     changed();
                 }, i -> String.valueOf(i)));
         findViewById(R.id.subBack).setOnClickListener(v -> closeSub());
+        githubWallpapersChoice = findViewById(R.id.githubWallpapersChoice);
+        githubWallpapersChoice.setOnClickListener(v -> openDownload(githubWallpapersChoice));
         int[] backdropIds = {R.id.backdropColor, R.id.backdropBlur, R.id.backdropLiquid};
         for (int i = 0; i < backdropIds.length; i++) {
             final String value = BACKDROPS[i];
@@ -181,8 +183,8 @@ public final class LauncherSettingsActivity extends Activity {
     private void showPage(int index) {
         if (subOpen) {
             subOpen = false;
+            if (downloadCancel != null) downloadCancel.set(true);
             findViewById(R.id.pageSub).setVisibility(View.GONE);
-            findViewById(R.id.pagePersonal).setVisibility(View.VISIBLE);
         }
         page = index;
         ((TextView) findViewById(R.id.pageTitle)).setText(
@@ -214,6 +216,7 @@ public final class LauncherSettingsActivity extends Activity {
             boolean toNav = code == (rtl ? android.view.KeyEvent.KEYCODE_DPAD_RIGHT : android.view.KeyEvent.KEYCODE_DPAD_LEFT);
             if (inNav(f) && toContent) {
                 if (page == 0) columnsChoice.requestFocus();
+                else if (page == 2) githubWallpapersChoice.requestFocus();
                 return true;
             }
             if (!inNav(f) && !(f instanceof StepSlider) && toNav) {
@@ -228,6 +231,8 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
     private static final int MIN_COLUMNS = 5, MAX_COLUMNS = 7;
+    private View githubWallpapersChoice;
+    private java.util.concurrent.atomic.AtomicBoolean downloadCancel;
     private View subRow;
     private boolean subOpen;
     /** Hiding the focused page moves focus to the menu for a moment; that must not switch pages. */
@@ -242,6 +247,7 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = row;
         subOpen = true;
         findViewById(R.id.subSliderCard).setVisibility(View.VISIBLE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.GONE);
         findViewById(R.id.pagePersonal).setVisibility(View.GONE);
         findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
@@ -266,6 +272,7 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.pagePersonal).setVisibility(View.GONE);
         findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.VISIBLE);
         findViewById(R.id.subSection).setVisibility(View.VISIBLE);
         ((TextView) findViewById(R.id.pageTitle)).setText(labelRes);
@@ -278,13 +285,57 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = false;
     }
 
+    /** The sub-page that copies the GitHub wallpaper collection onto the TV, with a progress bar. */
+    private void openDownload(View row) {
+        navLock = true;
+        subRow = row;
+        subOpen = true;
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.wallpapers_github);
+        TextView status = findViewById(R.id.dlStatus);
+        android.widget.ProgressBar bar = findViewById(R.id.dlBar);
+        bar.setIndeterminate(true);
+        status.setText(R.string.dl_connecting);
+        findViewById(R.id.subBack).requestFocus();
+        navLock = false;
+        if (downloadCancel != null) downloadCancel.set(true);
+        downloadCancel = new java.util.concurrent.atomic.AtomicBoolean();
+        WallpaperDownloader.start(this, downloadCancel, new WallpaperDownloader.Listener() {
+            @Override public void onProgress(int done, int total, String name) {
+                bar.setIndeterminate(false);
+                bar.setMax(total);
+                bar.setProgress(done);
+                status.setText(getString(R.string.dl_progress, done, total, wallpaperLabel(name)));
+            }
+            @Override public void onDone(int added, int skipped) {
+                bar.setIndeterminate(false);
+                bar.setProgress(bar.getMax());
+                status.setText(getString(R.string.dl_done, added, skipped));
+                if (added > 0) changed();
+            }
+            @Override public void onError() {
+                bar.setIndeterminate(false);
+                bar.setProgress(0);
+                status.setText(R.string.dl_failed);
+            }
+        });
+    }
+
     private void closeSub() {
         if (!subOpen) return;
         navLock = true;
         subOpen = false;
+        if (downloadCancel != null) downloadCancel.set(true);
+        boolean fromWallpapers = subRow == githubWallpapersChoice;
         findViewById(R.id.pageSub).setVisibility(View.GONE);
-        findViewById(R.id.pagePersonal).setVisibility(View.VISIBLE);
-        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.nav_personalization);
+        findViewById(fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(fromWallpapers ? R.string.nav_screensaver_wallpaper
+                : R.string.nav_personalization);
         refresh();
         if (subRow != null) subRow.requestFocus();
         navLock = false;
@@ -304,7 +355,7 @@ public final class LauncherSettingsActivity extends Activity {
         File single = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
         if (single != null && single.isFile()) images.add(0, single);
         String[] labels = new String[images.size() + 1];
-        for (int i = 0; i < images.size(); i++) labels[i] = images.get(i).getName();
+        for (int i = 0; i < images.size(); i++) labels[i] = wallpaperLabel(images.get(i).getName());
         labels[images.size()] = getString(R.string.wallpaper_none);
         String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         int checked = "none".equals(current) ? images.size()
@@ -380,6 +431,13 @@ public final class LauncherSettingsActivity extends Activity {
         }
     }
 
+    /** A wallpaper file name as shown: no extension, hyphens and underscores read as spaces. */
+    static String wallpaperLabel(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        String base = dot > 0 ? fileName.substring(0, dot) : fileName;
+        return base.replace('-', ' ').replace('_', ' ');
+    }
+
     private static int indexOf(List<File> images, String name) {
         if (name == null) return -1;
         for (int i = 0; i < images.size(); i++) {
@@ -415,7 +473,7 @@ public final class LauncherSettingsActivity extends Activity {
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         wallpaperChoice.setText(getString(R.string.wallpaper_state,
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
-                        : wallpaperCurrent != null ? wallpaperCurrent
+                        : wallpaperCurrent != null ? wallpaperLabel(wallpaperCurrent)
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         libraryShowHiddenChoice.setText(getString(R.string.library_show_hidden_state,

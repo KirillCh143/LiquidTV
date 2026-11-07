@@ -181,4 +181,10 @@
     <string name="columns_desc">How many apps fit in one row of the Home screen.</string>
     <string name="dock_opacity_desc">How opaque the dock panel is. 0% is fully transparent.</string>
     <string name="dock_blur_desc">How strongly the wallpaper behind the dock is blurred.</string>
+    <string name="wallpapers_github">Download wallpapers from GitHub</string>
+    <string name="wallpapers_github_desc">Adds the wallpaper collection from the LiquidTV repository on GitHub. Pictures you already have are skipped.</string>
+    <string name="dl_connecting">Connecting\u2026</string>
+    <string name="dl_progress">Downloading %1$d of %2$d: %3$s</string>
+    <string name="dl_done">Done: %1$d new, %2$d already there</string>
+    <string name="dl_failed">No connection, or GitHub is unavailable</string>
 </resources>
