@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Local patch: every small tile in the Settings OK-press grid (popup_settings_grid,
+     MainActivity.showSettingsGrid) except the big Reboot one — icon on the left, label on the right, instead of
+     item_settings_tile's icon-above-label. tile_bg_liquid handles the focus highlight, and the "glass" ImageView
+     behind everything else is this one tile's own blur/liquid layer (MainActivity.setUpTileGlass) — a plain
+     child, so it always exactly tracks this tile's bounds and transform with no separate tracking of its own. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/tile_bg_liquid"
+    android:focusable="true"
+    android:clickable="true">
+
+    <ImageView
+        android:id="@+id/glass"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no" />
+
+    <!-- duplicateParentState, here and on icon/title below: pill_text's focused-state black only ever applies
+         if a view's own drawable state includes it — of these three, only the tile (their ancestor) is
+         actually focusable, so each one has to pass its parent's state down to the next. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="16dp"
+        android:duplicateParentState="true">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="28.6dp"
+            android:layout_height="28.6dp"
+            android:tint="@drawable/pill_text"
+            android:duplicateParentState="true"
+            android:importantForAccessibility="no" />
+
+        <!-- Title, and under it an optional second line (the Network tile puts the connected network's name
+             there; MainActivity makes it visible, every other tile leaves it gone). weight 1 + width 0: the
+             subtitle ellipsizes with "..." instead of pushing the text out of the tile. -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="vertical"
+            android:duplicateParentState="true">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@drawable/pill_text"
+                android:textSize="14sp"
+                android:fontFamily="@string/font_medium"
+                android:duplicateParentState="true"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@drawable/pill_text"
+                android:textSize="11sp"
+                android:fontFamily="@string/font_regular"
+                android:alpha="0.75"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:duplicateParentState="true"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sidebar entry, tvOS Launcher style: bare, a soft wash when it is the open page, solid white when focused. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle"><solid android:color="#FFFFFFFF" /><corners android:radius="12dp" /></shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle"><solid android:color="#24FFFFFF" /><corners android:radius="12dp" /></shape>
+    </item>
+    <item><shape android:shape="rectangle"><solid android:color="#00000000" /></shape></item>
+</selector>

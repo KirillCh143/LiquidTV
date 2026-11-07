@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Local patch: a top-bar pill's resting look with no focus state, for the Settings pill while its grid is open
+     (MainActivity.calmAnchor): focus stays on the pill's window, so pill_bg's own focused white would otherwise
+     stay painted behind the grid. Transparent, because the pill's own glass layer is what shows at rest. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="21dp" />
+</shape>

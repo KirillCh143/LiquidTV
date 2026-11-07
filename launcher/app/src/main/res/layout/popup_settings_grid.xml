@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Local patch: the Settings pill's OK-press menu (MainActivity.showSettingsGrid) — a tvOS-style control-centre
+     grid, not the vertical list popup_inputs uses: a tall Reboot tile and a short Sleep tile on the left, three
+     equal tiles (Wi-Fi, Launcher settings, Android settings) on the right. No background of its own (unlike
+     glass_panel on the other popups): each tile draws its own independent glass layer, a child view inside it
+     (item_settings_tile/item_settings_tile_row's own "glass" ImageView, set up by MainActivity.setUpTileGlass)
+     so it always exactly tracks that tile's own bounds and transform — the entrance animation, the focus scale,
+     everything. colLeft/colRight have no width of their own here: showSettingsGrid sets both to the Settings
+     pill's own measured width at runtime, so the grid is never wider than that pill. 12dp padding on every side, so a focused
+     tile's 5% scale is never clipped by the popup window; showSettingsGrid shifts the popup outward by that same
+     12dp, so the tile columns (not the padding) line up with the Settings pill's own edges.
+     clipChildren/clipToPadding false throughout, so that growth is never clipped by its own slot or column.
+     Each FrameLayout here is a slot that showSettingsGrid fills with an inflated item_settings_tile (Reboot) or
+     item_settings_tile_row (every other tile); Left/Right/Up/Down stay inside this grid (MainActivity wires each
+     tile's own key listener, the same idea as the top bar's pillKeys) since there is nowhere outside it for them
+     to go — Back is the only way out (PopupWindow's own default). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/panel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:paddingEnd="12dp"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:elevation="12dp">
+
+    <LinearLayout
+        android:id="@+id/colLeft"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="5dp"
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <FrameLayout
+            android:id="@+id/tileReboot"
+            android:layout_width="match_parent"
+            android:layout_height="116dp"
+            android:layout_marginBottom="10dp" />
+
+        <FrameLayout
+            android:id="@+id/tileSleep"
+            android:layout_width="match_parent"
+            android:layout_height="53dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/colRight"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <FrameLayout
+            android:id="@+id/tileWifi"
+            android:layout_width="match_parent"
+            android:layout_height="53dp"
+            android:layout_marginBottom="10dp" />
+
+        <FrameLayout
+            android:id="@+id/tileLauncher"
+            android:layout_width="match_parent"
+            android:layout_height="53dp"
+            android:layout_marginBottom="10dp" />
+
+        <FrameLayout
+            android:id="@+id/tileAndroid"
+            android:layout_width="match_parent"
+            android:layout_height="53dp" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Local patch: the big Reboot tile in the Settings OK-press grid (popup_settings_grid,
+     MainActivity.showSettingsGrid) — an icon above a short label, centred; tile_bg_liquid handles the focus
+     highlight, and the "glass" ImageView behind everything else is this one tile's own blur/liquid layer
+     (MainActivity.setUpTileGlass) — a plain child, so it always exactly tracks this tile's bounds and
+     transform (dropIn's entrance animation, the focus scale) with no separate position-tracking of its own.
+     Every other tile is icon-left/label-right (item_settings_tile_row). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/tile_bg_liquid"
+    android:focusable="true"
+    android:clickable="true">
+
+    <ImageView
+        android:id="@+id/glass"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no" />
+
+    <!-- duplicateParentState, here and on icon/title below: pill_text's focused-state black only ever applies
+         if a view's own drawable state includes it — of these three, only the tile (their ancestor) is
+         actually focusable, so each one has to pass its parent's state down to the next. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingBottom="6.7dp"
+        android:duplicateParentState="true">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="78dp"
+            android:layout_height="78dp"
+            android:tint="@drawable/power_text"
+            android:duplicateParentState="true"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-4dp"
+            android:textColor="@drawable/power_text"
+            android:textSize="14sp"
+            android:fontFamily="@string/font_medium"
+            android:gravity="center"
+            android:duplicateParentState="true"
+            android:maxLines="2" />
+    </LinearLayout>
+</FrameLayout>

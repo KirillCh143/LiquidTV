@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AerialDream: the Apple TV aerial video full screen, the place it was filmed bottom left, the time bottom right. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000">
+
+    <TextureView
+        android:id="@+id/aerialVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0" />
+
+    <TextView
+        android:id="@+id/aerialLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="48dp"
+        android:layout_marginBottom="44dp"
+        android:textColor="#E6FFFFFF"
+        android:textSize="18sp"
+        android:fontFamily="@string/font_medium"
+        android:shadowColor="#99000000"
+        android:shadowRadius="8"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:maxWidth="600dp" />
+
+    <TextClock
+        android:id="@+id/aerialClock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="48dp"
+        android:layout_marginBottom="36dp"
+        android:textColor="#FFFFFFFF"
+        android:textSize="52sp"
+        android:fontFamily="@string/font_light"
+        android:shadowColor="#99000000"
+        android:shadowRadius="10"
+        android:includeFontPadding="false" />
+</FrameLayout>

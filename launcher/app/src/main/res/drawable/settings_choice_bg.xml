@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- tvOS Launcher look: a 8%-white rounded row, solid white when focused (text flips dark via pill_text),
+     a stronger white wash when it is the selected choice. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#47FFFFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14FFFFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</selector>

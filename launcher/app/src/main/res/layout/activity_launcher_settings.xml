@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Laid out like tvOS Launcher's Home settings (title and a sidebar of pages on the left, the open page's
+     name and its rows on the right, a hint pill at the bottom), over the same blurred wallpaper with a 10%
+     white wash that AppLibraryActivity (the apps grid) uses. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0A080C">
+
+    <ImageView
+        android:id="@+id/wallpaper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#1AFFFFFF" />
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="horizontal"
+    android:paddingStart="56dp"
+    android:paddingEnd="62dp"
+    android:paddingTop="34dp"
+    android:paddingBottom="24dp">
+
+    <LinearLayout
+    android:clipChildren="false"
+    android:clipToPadding="false"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.36"
+        android:orientation="vertical"
+        android:paddingEnd="28dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:autoSizeMaxTextSize="24sp"
+            android:autoSizeMinTextSize="14sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@string/font_medium"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:text="@string/settings_title"
+            android:textColor="#FFFFFFFF"
+            android:textStyle="bold" />
+
+        <LinearLayout
+        android:clipChildren="false"
+        android:clipToPadding="false"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/navPersonal"
+                style="@style/SettingsNavItem">
+
+                <ImageView
+                    style="@style/SettingsNavChip"
+                    android:src="@drawable/ic_picture"
+                    android:tint="@drawable/settings_nav_text"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    style="@style/SettingsNavLabel"
+                    android:text="@string/nav_personalization"
+                    android:duplicateParentState="true" />
+            </LinearLayout>
+
+            <LinearLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/navProfile"
+                style="@style/SettingsNavItem">
+
+                <ImageView
+                    style="@style/SettingsNavChip"
+                    android:src="@drawable/ic_user_circle"
+                    android:tint="@drawable/settings_nav_text"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    style="@style/SettingsNavLabel"
+                    android:text="@string/nav_profile"
+                    android:duplicateParentState="true" />
+            </LinearLayout>
+
+            <LinearLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/navWallpaper"
+                style="@style/SettingsNavItem">
+
+                <ImageView
+                    style="@style/SettingsNavChip"
+                    android:src="@drawable/ic_tabler_moon"
+                    android:tint="@drawable/settings_nav_text"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    style="@style/SettingsNavLabel"
+                    android:text="@string/nav_screensaver_wallpaper"
+                    android:duplicateParentState="true" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+    android:clipChildren="false"
+    android:clipToPadding="false"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.64"
+        android:paddingTop="5dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/pageTitle"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:fontFamily="@string/font_medium"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <FrameLayout
+        android:clipChildren="false"
+        android:clipToPadding="false"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+    <ScrollView
+        android:id="@+id/pagePersonal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="-30dp"
+        android:layout_marginEnd="-30dp"
+        android:paddingStart="30dp"
+        android:paddingEnd="30dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingBottom="16dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+        android:clipChildren="false"
+        android:clipToPadding="false"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_look" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/columnsChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/dockOpacityChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/dockBlurChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/dockBackdropChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/wallpaperChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/animationsChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_home" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/openOnStartChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp"
+                android:visibility="gone" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/libraryShowHiddenChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <TextView
+                android:id="@+id/followThemeChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp"
+                android:text="@string/follow_theme" />
+            <TextView style="@style/SettingsHint" android:text="@string/follow_theme_hint" />
+
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_system" />
+
+            <TextView
+                android:id="@+id/defaultHomeChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp"
+                android:text="@string/home_settings" />
+            <TextView style="@style/SettingsHint" android:layout_marginBottom="5dp" android:text="@string/home_settings_help" />
+
+            <TextView
+                android:id="@+id/tvSettingsChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp"
+                android:text="@string/tv_settings" />
+        </LinearLayout>
+    </ScrollView>
+
+            <LinearLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/pageSub"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/subBack"
+                    style="@style/SettingsBackRow"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/settings_back" />
+
+                <TextView
+                    android:id="@+id/subSection"
+                    style="@style/SettingsSection"
+                    android:layout_marginTop="19dp" />
+
+                <LinearLayout
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                    android:id="@+id/subSliderCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/settings_card_bg"
+                    android:orientation="vertical"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="22dp"
+                    android:paddingBottom="18dp">
+
+                    <TextView
+                        android:id="@+id/subTitle"
+                        android:layout_width="match_parent"
+                        android:layout_marginStart="30dp"
+                        android:layout_marginEnd="30dp"
+                        android:gravity="center_horizontal"
+                        android:textAlignment="center"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@string/font_medium"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="26sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/subDesc"
+                        android:layout_width="match_parent"
+                        android:layout_marginStart="30dp"
+                        android:layout_marginEnd="30dp"
+                        android:gravity="center_horizontal"
+                        android:textAlignment="center"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@string/font_regular"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="15sp" />
+
+                    <com.gathin.tvhome.StepSlider
+                        android:id="@+id/subSlider"
+                        android:layout_width="match_parent"
+                        android:layout_height="86dp"
+                        android:layout_marginTop="14dp"
+                        android:focusable="true" />
+                </LinearLayout>
+                <LinearLayout
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                    android:id="@+id/subChoices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/backdropColor"
+                    style="@style/SettingsOptionRow"
+                    android:text="@string/dock_backdrop_color" />
+
+                <TextView
+                    android:id="@+id/backdropBlur"
+                    style="@style/SettingsOptionRow"
+                    android:text="@string/dock_backdrop_blur" />
+
+                <TextView
+                    android:id="@+id/backdropLiquid"
+                    style="@style/SettingsOptionRow"
+                    android:text="@string/dock_backdrop_liquid" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <FrameLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/pageProfile"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <FrameLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/pageWallpaper"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+</LinearLayout>
+</FrameLayout>

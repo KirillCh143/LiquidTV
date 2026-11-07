@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Local patch: the tvOS-style "all apps" screen (AppLibraryActivity). #FF101419 is only the fallback behind
+     the wallpaper, for the rare case wallpapers are off or the file could not be read — ordinarily wallpaperSharp
+     (briefly) then wallpaperBlur (blurred, AppLibraryActivity.runEntrance) cover it completely, with scrim's
+     white at 20% over them. Grid padding start/end is 66dp (56dp + 10dp) to match activity_main.xml's grid
+     exactly: its own RecyclerView padding (10dp) sits inside an outer LinearLayout with 56dp of its own, so
+     Home's true horizontal inset is the sum of both. Tile width comes out of that inset divided by columns
+     (AppAdapter.tileWidthPx), so matching it here is what makes the dock's tiles the same width, in the same
+     columns, as Home's. paddingTop (56dp) is not from a formula — DockDecoration's band sits closer to the
+     tiles on top than on the sides (14dp pad vs 22dp sidePad) and the grid itself adds a little more before
+     that, so this was tuned by measuring the rendered band's gap on screen until top and sides read as equal;
+     touch it only after re-measuring, not by recomputing from the dp constants alone. -->
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF101419">
+
+    <ImageView
+        android:id="@+id/wallpaperSharp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no" />
+
+    <ImageView
+        android:id="@+id/wallpaperBlur"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:alpha="0"
+        android:importantForAccessibility="no" />
+
+    <View
+        android:id="@+id/scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FFFFFFFF"
+        android:alpha="0" />
+
+    <!-- Local patch: the same blurred/liquid-glass dock look as Home's own (WallpaperPlayer's dock blur layer),
+         a second full-screen copy of the wallpaper clipped to the dock band's rect (AppLibraryActivity's own
+         DockDecoration MaskListener). Sits above the white wash so the dock itself reads as glass, not just a
+         flat white band. -->
+    <ImageView
+        android:id="@+id/dockGlass"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:alpha="0"
+        android:importantForAccessibility="no" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/libraryGrid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="34.5dp"
+        android:paddingEnd="34.5dp"
+        android:paddingTop="24.5dp"
+        android:paddingBottom="40dp"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:overScrollMode="never"
+        android:scrollbars="none" />
+
+    <!-- The single floating glass highlight, as Home's own (activity_main.xml); sized and moved to the
+         focused tile in AppLibraryActivity.onTileFocused. -->
+    <com.gathin.tvhome.GlassView
+        android:id="@+id/glass"
+        android:layout_width="10dp"
+        android:layout_height="10dp"
+        android:alpha="0"
+        android:importantForAccessibility="no" />
+
+</FrameLayout>

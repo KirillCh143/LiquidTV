@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Local patch, allowed by the owner: AerialDream streams Apple's aerial videos from sylvan.apple.com, whose HTTPS
+     certificate Android does not trust (Lampa plays the same files over plain HTTP). Plain HTTP is allowed for that
+     one host only; every other connection keeps Android's default, HTTPS only. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">sylvan.apple.com</domain>
+    </domain-config>
+</network-security-config>
