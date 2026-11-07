@@ -190,11 +190,6 @@
                 android:layout_marginBottom="5dp" />
 
             <com.gathin.tvhome.SettingsValueRow
-                android:id="@+id/wallpaperChoice"
-                style="@style/SettingsRow"
-                android:layout_marginBottom="5dp" />
-
-            <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/animationsChoice"
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp" />
@@ -399,20 +394,36 @@
                 android:layout_height="match_parent"
                 android:visibility="gone" />
 
-            <FrameLayout
+            <LinearLayout
             android:clipChildren="false"
             android:clipToPadding="false"
                 android:id="@+id/pageWallpaper"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:orientation="vertical"
                 android:visibility="gone">
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="@string/wallpapers_manage" />
 
                 <TextView
                     android:id="@+id/githubWallpapersChoice"
                     style="@style/SettingsRow"
-                    android:layout_marginTop="34dp"
+                    android:layout_marginBottom="5dp"
                     android:text="@string/wallpapers_github" />
-            </FrameLayout>
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/wallpaperChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <TextView
+                    android:id="@+id/wallpaperResetChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp"
+                    android:text="@string/wallpaper_reset" />
+            </LinearLayout>
 
         </FrameLayout>
 

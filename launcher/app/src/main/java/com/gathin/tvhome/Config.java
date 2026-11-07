@@ -619,6 +619,20 @@ final class Config {
             wallpaper = chosen.isEmpty() ? null : chosen.get(0);
             wallpaperEnabled = !chosen.isEmpty();
         }
+        // Local patch: the built-in wallpaper (DefaultWallpaper) is what shows when nothing else does. Picked
+        // explicitly ("default", the reset row in Launcher settings) it always wins; with no pick and no theme
+        // picture, the downloaded collection shows if there is one, and the built-in one until then.
+        if (wallpaperEnabled && (DefaultWallpaper.CHOICE.equals(wallpaperChoice)
+                || (wallpaperChoice == null && wallpapers.isEmpty()))) {
+            List<File> collection = DefaultWallpaper.CHOICE.equals(wallpaperChoice) || dir == null
+                    ? Collections.<File>emptyList() : WallpaperRotation.images(new File(dir, "wallpapers"));
+            File builtIn = collection.isEmpty() ? DefaultWallpaper.file(ctx) : null;
+            if (!collection.isEmpty() || builtIn != null) {
+                wallpapers.clear();
+                wallpapers.addAll(collection.isEmpty() ? Collections.singletonList(builtIn) : collection);
+                wallpaper = wallpapers.get(0);
+            }
+        }
         // A festive skin comes only from a theme; config.xml has no festival.
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));

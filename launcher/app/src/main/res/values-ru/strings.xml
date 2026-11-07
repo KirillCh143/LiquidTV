@@ -185,4 +185,6 @@
     <string name="dl_progress">Загрузка %1$d из %2$d: %3$s</string>
     <string name="dl_done">Готово: новых — %1$d, уже было — %2$d</string>
     <string name="dl_failed">Нет соединения или GitHub недоступен</string>
+    <string name="wallpaper_reset">Сбросить настройки обоев</string>
+    <string name="wallpapers_manage">Управление обоями</string>
 </resources>

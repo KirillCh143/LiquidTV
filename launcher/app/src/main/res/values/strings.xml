@@ -187,4 +187,7 @@
     <string name="dl_progress">Downloading %1$d of %2$d: %3$s</string>
     <string name="dl_done">Done: %1$d new, %2$d already there</string>
     <string name="dl_failed">No connection, or GitHub is unavailable</string>
+    <string name="wallpaper_reset">Reset wallpaper settings</string>
+    <string name="wallpaper_default_name">Blur Wave</string>
+    <string name="wallpapers_manage">Wallpaper management</string>
 </resources>
