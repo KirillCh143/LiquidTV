@@ -266,6 +266,10 @@ public final class LauncherSettingsActivity extends Activity {
         slider.setFormatter(valueLabel::of);
         slider.setSteps(steps, start);
         slider.setListener(apply);
+        // Geometry alone sends Down from Back to the menu on the left: wire the sub-page's focus by hand.
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.subSlider);
+        slider.setNextFocusUpId(R.id.subBack);
+        slider.setNextFocusDownId(R.id.subSlider);
         slider.requestFocus();
         navLock = false;
     }
@@ -284,6 +288,9 @@ public final class LauncherSettingsActivity extends Activity {
         ((TextView) findViewById(R.id.pageTitle)).setText(labelRes);
         ((TextView) findViewById(R.id.subSection)).setText(labelRes);
         refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(backdropChoices[0].getId());
+        backdropChoices[0].setNextFocusUpId(R.id.subBack);
+        backdropChoices[backdropChoices.length - 1].setNextFocusDownId(backdropChoices[backdropChoices.length - 1].getId());
         for (int i = 0; i < BACKDROPS.length; i++) {
             if (BACKDROPS[i].equals(dockBackdrop)) { backdropChoices[i].requestFocus(); navLock = false; return; }
         }
@@ -307,6 +314,7 @@ public final class LauncherSettingsActivity extends Activity {
         android.widget.ProgressBar bar = findViewById(R.id.dlBar);
         bar.setIndeterminate(true);
         status.setText(R.string.dl_connecting);
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.subBack);
         findViewById(R.id.subBack).requestFocus();
         navLock = false;
         if (downloadCancel != null) downloadCancel.set(true);

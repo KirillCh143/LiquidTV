@@ -122,6 +122,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private String liveTvPkg;
     /** Launcher settings' change count this Home was built with (see onResume). */
     private long settingsRevision;
+    /** Local patch: Home was rebuilt because Launcher settings changed. The new instance puts the dock in place
+     *  without the entrance (no tile animation, no scroll into position) and stays invisible until it is
+     *  settled, so the dock never visibly drops from the top. Static: it has to survive recreate(). */
+    private static boolean quietRebuild;
+    private boolean instantDock;
     /** Idle time on Home before ClockActivity; 0 is off (config.xml, home_idle_clock_minutes). */
     private long idleClockMs;
     private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
@@ -492,6 +497,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hiddenApps = new HashSet<>(cfg.hiddenApps);
 
         grid = findViewById(R.id.grid);
+        instantDock = quietRebuild;
+        quietRebuild = false;
+        if (instantDock) {
+            // Nearly invisible, not gone: a view at alpha 0 is not drawn, and the dock band's blur layer follows
+            // the grid's own drawing. The safety timer shows it even if the layout never settles.
+            grid.setAlpha(0.01f);
+            grid.postDelayed(this::revealGrid, 900);
+        }
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
         // Mirror only the app grid; the header and other locales keep their own layouts.
         // single_row: one span laid out sideways, so the same adapter, glass and dock band serve a scrolling row.
@@ -586,7 +599,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
-        if (animations && !reducedMotion) {
+        if (animations && !reducedMotion && !instantDock) {
             grid.setLayoutAnimation(new LayoutAnimationController(
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
@@ -637,6 +650,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // Cold start or column count > 4: the first focus can run before the grid has its final width or
             // padding, leaving the glass at the XML design size until a key is pressed.
             grid.post(this::refitGlass);
+            // Rebuilt by a settings change: show the grid once the padding has moved the dock down and the layout
+            // that follows has been drawn.
+            if (instantDock && h > 0) grid.post(() -> grid.post(this::revealGrid));
         });
 
         // Keep the glass glued to its tile while the grid scrolls.
@@ -962,6 +978,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
+    private void revealGrid() {
+        if (!instantDock) return;
+        instantDock = false;
+        grid.setAlpha(1f);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -975,6 +997,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // delivered their RESULT_OK; Home (the remote's button) clears them off this task and the result comes
         // back cancelled, so a new wallpaper or layout waited for the next process start.
         if (Config.settingsChanged(settingsRevision, settingsRevision())) {
+            quietRebuild = true;
             recreate();
             return;
         }
@@ -1708,7 +1731,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // actually off; reduced motion does it in one jump so it does not fight the highlight.
             boolean scroll = !singleRow && Math.abs(dy) > (int) (8 * density);
             if (scroll) {
-                if (!animations || reducedMotion) grid.scrollBy(0, dy);
+                if (!animations || reducedMotion || instantDock) grid.scrollBy(0, dy);
                 else grid.smoothScrollBy(0, dy);
             }
             showHero(position, scroll ? r.top - dy : r.top);
