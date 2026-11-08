@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="wallpaper_names" translatable="false">
+        <item>Abstract=Абстракция</item>
+        <item>Cityscape=Города</item>
+        <item>Landscape=Пейзажи</item>
+        <item>Nature=Природа</item>
+        <item>Wildlife=Животные</item>
+        <item>Amber Petals=Янтарные лепестки</item>
+        <item>Blue Wave=Синяя волна</item>
+        <item>Dawn Sphere=Рассветная сфера</item>
+        <item>Gradient Swirl=Градиентный вихрь</item>
+        <item>Midnight Petals=Полуночные лепестки</item>
+        <item>Bangkok Loop=Бангкок</item>
+        <item>Copper Facade=Медный фасад</item>
+        <item>Shanghai Dusk=Сумерки Шанхая</item>
+        <item>Skyline Flight=Полёт над городом</item>
+        <item>Steel Eye=Стальное око</item>
+        <item>Antelope Canyon=Каньон Антилопы</item>
+        <item>Braided River=Речные протоки</item>
+        <item>Lofoten Storm=Шторм на Лофотенах</item>
+        <item>Mojave Dune=Дюна Мохаве</item>
+        <item>Tide Pool=Приливная заводь</item>
+        <item>Moss Heart=Моховое сердце</item>
+        <item>Neon Peony=Неоновый пион</item>
+        <item>Pastel Bloom=Пастельный цвет</item>
+        <item>Protea Dew=Протея в росе</item>
+        <item>Sakura Sky=Небо сакуры</item>
+        <item>Amur Tiger=Амурский тигр</item>
+        <item>Deep Blue Shark=Глубоководная акула</item>
+        <item>Little Owl=Домовый сыч</item>
+        <item>Macaw Pair=Пара ара</item>
+        <item>Peacock=Павлин</item>
+    </string-array>
+</resources>

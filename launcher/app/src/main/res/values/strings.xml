@@ -188,6 +188,17 @@
     <string name="dl_done">Done: %1$d new, %2$d already there</string>
     <string name="dl_failed">No connection, or GitHub is unavailable</string>
     <string name="wallpaper_reset">Reset wallpaper settings</string>
-    <string name="wallpaper_default_name">Blur Wave</string>
+    <string name="wallpaper_default_name">Aurora</string>
     <string name="wallpapers_manage">Wallpaper management</string>
+    <string name="slideshow_params">Slideshow options</string>
+    <string name="slideshow_state">Slideshow: %1$s</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="slideshow_interval">Interval</string>
+    <string name="slideshow_interval_desc">How often the wallpaper changes during the slideshow.</string>
+    <string name="slideshow_minutes">%1$d min</string>
+    <string name="slideshow_interval_state">Interval: %1$s</string>
+    <string name="slideshow_label">Slideshow</string>
+    <string name="wallpapers_standard">Standard wallpapers</string>
+    <string name="wallpapers_other">Other wallpapers</string>
 </resources>

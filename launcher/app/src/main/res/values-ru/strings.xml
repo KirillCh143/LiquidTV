@@ -187,4 +187,16 @@
     <string name="dl_failed">Нет соединения или GitHub недоступен</string>
     <string name="wallpaper_reset">Сбросить настройки обоев</string>
     <string name="wallpapers_manage">Управление обоями</string>
+    <string name="slideshow_params">Параметры слайдшоу</string>
+    <string name="slideshow_state">Слайдшоу: %1$s</string>
+    <string name="yes">Да</string>
+    <string name="no">Нет</string>
+    <string name="slideshow_interval">Интервал времени</string>
+    <string name="slideshow_interval_desc">Как часто обои меняются во время слайдшоу.</string>
+    <string name="slideshow_minutes">%1$d мин</string>
+    <string name="slideshow_interval_state">Интервал времени: %1$s</string>
+    <string name="slideshow_label">Слайдшоу</string>
+    <string name="wallpapers_standard">Стандартные обои</string>
+    <string name="wallpapers_other">Другие обои</string>
+    <string name="wallpaper_default_name">Аврора</string>
 </resources>

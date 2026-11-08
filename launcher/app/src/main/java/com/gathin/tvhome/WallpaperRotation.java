@@ -20,19 +20,26 @@ final class WallpaperRotation {
 
     static List<File> images(File directory) {
         List<File> result = new ArrayList<>();
+        collect(directory, result, true);
+        return result;
+    }
+
+    /** Pictures of a folder, then (one level down) of its group folders, which the GitHub download makes. */
+    private static void collect(File directory, List<File> result, boolean groups) {
         File[] entries = directory == null ? null : directory.listFiles();
-        if (entries == null) return result;
+        if (entries == null) return;
         Arrays.sort(entries, Comparator.comparing(File::getName));
         for (File entry : entries) {
+            if (result.size() >= 100) return;
             String name = entry.getName().toLowerCase(Locale.ROOT);
-            if (entry.isFile() && entry.length() > 0 && entry.length() <= 10 * 1024 * 1024
+            if (entry.isDirectory() && groups && !name.startsWith(".")) {
+                collect(entry, result, false);
+            } else if (entry.isFile() && entry.length() > 0 && entry.length() <= 10 * 1024 * 1024
                     && (name.endsWith(".jpg") || name.endsWith(".jpeg")
                     || name.endsWith(".png") || name.endsWith(".webp"))) {
                 result.add(entry);
-                if (result.size() == 100) break;
             }
         }
-        return result;
     }
 
     static File find(List<File> images, String name) {

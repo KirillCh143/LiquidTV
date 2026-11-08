@@ -360,6 +360,45 @@
                         android:textSize="16sp" />
                 </LinearLayout>
 
+                <ScrollView
+                    android:id="@+id/subWallpaperScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:scrollbars="none"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:id="@+id/subWallpaperList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
+                        android:orientation="vertical" />
+                </ScrollView>
+
+                <LinearLayout
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                    android:id="@+id/subSlideshowChoices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/slideshowYes"
+                    style="@style/SettingsOptionRow"
+                    android:text="@string/yes" />
+
+                <TextView
+                    android:id="@+id/slideshowNo"
+                    style="@style/SettingsOptionRow"
+                    android:text="@string/no" />
+                </LinearLayout>
+
                 <LinearLayout
                 android:clipChildren="false"
                 android:clipToPadding="false"
@@ -423,6 +462,21 @@
                     style="@style/SettingsRow"
                     android:layout_marginBottom="5dp"
                     android:text="@string/wallpaper_reset" />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:layout_marginTop="19dp"
+                    android:text="@string/slideshow_params" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/slideshowChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/slideshowIntervalChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
             </LinearLayout>
 
         </FrameLayout>
