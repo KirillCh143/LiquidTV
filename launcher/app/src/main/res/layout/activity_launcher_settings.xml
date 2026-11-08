@@ -446,22 +446,10 @@
                     style="@style/SettingsSection"
                     android:text="@string/wallpapers_manage" />
 
-                <TextView
-                    android:id="@+id/githubWallpapersChoice"
-                    style="@style/SettingsRow"
-                    android:layout_marginBottom="5dp"
-                    android:text="@string/wallpapers_github" />
-
                 <com.gathin.tvhome.SettingsValueRow
                     android:id="@+id/wallpaperChoice"
                     style="@style/SettingsRow"
                     android:layout_marginBottom="5dp" />
-
-                <TextView
-                    android:id="@+id/wallpaperResetChoice"
-                    style="@style/SettingsRow"
-                    android:layout_marginBottom="5dp"
-                    android:text="@string/wallpaper_reset" />
 
                 <TextView
                     style="@style/SettingsSection"
@@ -477,6 +465,28 @@
                     android:id="@+id/slideshowIntervalChoice"
                     style="@style/SettingsRow"
                     android:layout_marginBottom="5dp" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/slideshowCollectionChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:layout_marginTop="19dp"
+                    android:text="@string/wallpapers_advanced" />
+
+                <TextView
+                    android:id="@+id/githubWallpapersChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp"
+                    android:text="@string/wallpapers_github" />
+
+                <TextView
+                    android:id="@+id/wallpaperResetChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp"
+                    android:text="@string/wallpaper_reset" />
             </LinearLayout>
 
         </FrameLayout>

@@ -185,7 +185,7 @@
     <string name="dl_progress">Загрузка %1$d из %2$d: %3$s</string>
     <string name="dl_done">Готово: новых — %1$d, уже было — %2$d</string>
     <string name="dl_failed">Нет соединения или GitHub недоступен</string>
-    <string name="wallpaper_reset">Сбросить настройки обоев</string>
+    <string name="wallpaper_reset">Удалить обои с GitHub</string>
     <string name="wallpapers_manage">Управление обоями</string>
     <string name="slideshow_params">Параметры слайдшоу</string>
     <string name="slideshow_state">Слайдшоу: %1$s</string>
@@ -199,4 +199,9 @@
     <string name="wallpapers_standard">Стандартные обои</string>
     <string name="wallpapers_other">Другие обои</string>
     <string name="wallpaper_default_name">Аврора</string>
+    <string name="wallpapers_github_deleted">Обои с GitHub удалены</string>
+    <string name="wallpapers_github_none">Нет обоев с GitHub для удаления</string>
+    <string name="wallpapers_advanced">Дополнительные параметры</string>
+    <string name="slideshow_collection">Коллекция слайдшоу</string>
+    <string name="slideshow_collection_state">Коллекция слайдшоу: %1$d</string>
 </resources>

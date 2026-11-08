@@ -39,7 +39,10 @@ public final class LauncherSettingsActivity extends Activity {
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
     private TextView libraryShowHiddenChoice;
     /** Slideshow parameters; stored only, nothing reads them yet. */
-    private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo;
+    private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo, slideshowCollectionChoice;
+    /** The wallpaper sub-page is picking the slideshow collection (many checks) rather than one wallpaper. */
+    private boolean wallpaperMulti;
+    private static final String SLIDESHOW_SET_KEY = "slideshow_set";
     private boolean slideshow;
     private int slideshowMinutes;
     private static final int[] SLIDESHOW_MINUTES = {1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60};
@@ -103,13 +106,8 @@ public final class LauncherSettingsActivity extends Activity {
         dockBackdropChoice = findViewById(R.id.dockBackdropChoice);
         dockBackdropChoice.setOnClickListener(v -> openChoices(dockBackdropChoice, R.string.dock_backdrop_label));
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
-        wallpaperChoice.setOnClickListener(v -> openWallpapers());
-        findViewById(R.id.wallpaperResetChoice).setOnClickListener(v -> {
-            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, DefaultWallpaper.CHOICE).apply();
-            changed();
-            Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
-            refresh();
-        });
+        wallpaperChoice.setOnClickListener(v -> openWallpapers(false));
+        findViewById(R.id.wallpaperResetChoice).setOnClickListener(v -> deleteGithubWallpapers());
         slideshow = choices.getBoolean("slideshow", false);
         slideshowMinutes = choices.getInt("slideshow_minutes", 1);
         slideshowChoice = findViewById(R.id.slideshowChoice);
@@ -118,12 +116,15 @@ public final class LauncherSettingsActivity extends Activity {
         slideshowNo = findViewById(R.id.slideshowNo);
         slideshowYes.setOnClickListener(v -> setSlideshow(true));
         slideshowNo.setOnClickListener(v -> setSlideshow(false));
+        slideshowCollectionChoice = findViewById(R.id.slideshowCollectionChoice);
+        slideshowCollectionChoice.setOnClickListener(v -> openWallpapers(true));
         slideshowIntervalChoice = findViewById(R.id.slideshowIntervalChoice);
         slideshowIntervalChoice.setOnClickListener(v -> openSub(slideshowIntervalChoice,
                 R.string.slideshow_interval, R.string.slideshow_interval_desc, 0, SLIDESHOW_MINUTES.length,
                 slideshowIndex(), i -> {
                     slideshowMinutes = SLIDESHOW_MINUTES[i];
                     choices.edit().putInt("slideshow_minutes", slideshowMinutes).apply();
+                    changed();
                 }, i -> getString(R.string.slideshow_minutes, SLIDESHOW_MINUTES[i])));
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
@@ -242,7 +243,7 @@ public final class LauncherSettingsActivity extends Activity {
             boolean toNav = code == (rtl ? android.view.KeyEvent.KEYCODE_DPAD_RIGHT : android.view.KeyEvent.KEYCODE_DPAD_LEFT);
             if (inNav(f) && toContent) {
                 if (page == 0) columnsChoice.requestFocus();
-                else if (page == 2) githubWallpapersChoice.requestFocus();
+                else if (page == 2) wallpaperChoice.requestFocus();
                 return true;
             }
             if (!inNav(f) && !(f instanceof StepSlider) && toNav) {
@@ -327,6 +328,7 @@ public final class LauncherSettingsActivity extends Activity {
         if (slideshow == on) return;
         slideshow = on;
         choices.edit().putBoolean("slideshow", on).apply();
+        changed();
         refresh();
     }
 
@@ -407,7 +409,7 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = true;
         subOpen = false;
         if (downloadCancel != null) downloadCancel.set(true);
-        boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
+        boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowCollectionChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
         findViewById(R.id.pageSub).setVisibility(View.GONE);
         findViewById(fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
         ((TextView) findViewById(R.id.pageTitle)).setText(fromWallpapers ? R.string.nav_screensaver_wallpaper
@@ -432,6 +434,40 @@ public final class LauncherSettingsActivity extends Activity {
         return name;
     }
 
+    private static String builtinName(String choice) {
+        for (String[] e : DefaultWallpaper.EXTRA) if (e[0].equals(choice)) return e[1];
+        return choice;
+    }
+
+    /** Removes what "Download wallpapers from GitHub" put on the TV: the group folders under wallpapers/. Pictures
+     *  placed straight in wallpapers/ (by a theme) stay. A picked wallpaper that is gone falls back to the built-in. */
+    private void deleteGithubWallpapers() {
+        File dir = Config.dir(this);
+        File root = dir == null ? null : new File(dir, ThemeFiles.WALLPAPERS);
+        File[] entries = root == null ? null : root.listFiles();
+        int removed = 0;
+        if (entries != null) {
+            for (File group : entries) {
+                if (!group.isDirectory()) continue;
+                File[] files = group.listFiles();
+                if (files != null) for (File f : files) if (f.delete()) removed++;
+                group.delete();
+            }
+        }
+        if (removed == 0) {
+            Toast.makeText(this, R.string.wallpapers_github_none, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
+        if (current != null && !"none".equals(current) && !DefaultWallpaper.isChoice(current)
+                && WallpaperRotation.find(WallpaperRotation.images(root), current) == null) {
+            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, DefaultWallpaper.CHOICE).apply();
+        }
+        changed();
+        Toast.makeText(this, R.string.wallpapers_github_deleted, Toast.LENGTH_SHORT).show();
+        refresh();
+    }
+
     private final List<TextView> wallpaperRows = new ArrayList<>();
     private final java.util.concurrent.ExecutorService thumbs = java.util.concurrent.Executors.newSingleThreadExecutor();
 
@@ -443,9 +479,10 @@ public final class LauncherSettingsActivity extends Activity {
 
     /** The sub-page of the wallpaper: Back, then every picture with a preview, in groups; a green check marks
      *  the one in use. The built-in one comes first; GitHub groups appear only once downloaded. */
-    private void openWallpapers() {
+    private void openWallpapers(boolean multi) {
         navLock = true;
-        subRow = wallpaperChoice;
+        wallpaperMulti = multi;
+        subRow = multi ? slideshowCollectionChoice : wallpaperChoice;
         subOpen = true;
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
         findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
@@ -455,7 +492,7 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.subChoices).setVisibility(View.GONE);
         findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
         findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
-        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.wallpaper_label);
+        ((TextView) findViewById(R.id.pageTitle)).setText(multi ? R.string.slideshow_collection : R.string.wallpaper_label);
         LinearLayout list = findViewById(R.id.subWallpaperList);
         // Cut the list at the top and bottom only, so the focused row can grow past the sides.
         android.view.View scroll = findViewById(R.id.subWallpaperScroll);
@@ -469,6 +506,7 @@ public final class LauncherSettingsActivity extends Activity {
 
         addWallpaperSection(list, getString(R.string.wallpapers_standard), dp);
         addWallpaperRow(list, getString(R.string.wallpaper_default_name), DefaultWallpaper.CHOICE, null, dp);
+        for (String[] extra : DefaultWallpaper.EXTRA) addWallpaperRow(list, localName(extra[1]), extra[0], null, dp);
 
         File dir = Config.dir(this);
         File root = dir == null ? null : new File(dir, ThemeFiles.WALLPAPERS);
@@ -528,7 +566,17 @@ public final class LauncherSettingsActivity extends Activity {
         rowParams.bottomMargin = (int) (12 * dp) - 12;
         row.setLayoutParams(rowParams);
         row.setOnClickListener(v -> {
-            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, choice).apply();
+            if (wallpaperMulti) {
+                java.util.Set<String> set = new java.util.HashSet<>(slideshowSet());
+                if (!set.remove(choice)) set.add(choice);
+                choices.edit().putStringSet(SLIDESHOW_SET_KEY, set).apply();
+                changed();
+                markWallpaper();
+                return;
+            }
+            // Picking one wallpaper ends the slideshow.
+            slideshow = false;
+            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, choice).putBoolean("slideshow", false).apply();
             changed();
             Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
             markWallpaper();
@@ -537,7 +585,7 @@ public final class LauncherSettingsActivity extends Activity {
         wallpaperRows.add(row);
         int w = (int) (64 * dp), h = (int) (36 * dp);
         thumbs.execute(() -> {
-            android.graphics.Bitmap thumb = thumbnail(file != null ? file : DefaultWallpaper.file(this), w, h, 5 * dp);
+            android.graphics.Bitmap thumb = thumbnail(file != null ? file : DefaultWallpaper.fileFor(this, choice), w, h, 5 * dp);
             if (thumb == null) return;
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
@@ -548,7 +596,13 @@ public final class LauncherSettingsActivity extends Activity {
         });
     }
 
+    private java.util.Set<String> slideshowSet() {
+        return choices.getStringSet(SLIDESHOW_SET_KEY, java.util.Collections.<String>emptySet());
+    }
+
     private boolean isChosenWallpaper(String choice) {
+        if (wallpaperMulti) return slideshowSet().contains(choice);
+        if (slideshow) return false;
         String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         if (current == null) {
             // Nothing picked: Home shows the downloaded collection if there is one, else the built-in picture.
@@ -679,9 +733,12 @@ public final class LauncherSettingsActivity extends Activity {
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
+        slideshowCollectionChoice.setText(getString(R.string.slideshow_collection_state, slideshowSet().size()));
         wallpaperChoice.setText(getString(R.string.wallpaper_state,
-                "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
+                slideshow ? getString(R.string.slideshow_label)
+                : "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : DefaultWallpaper.CHOICE.equals(wallpaperCurrent) ? getString(R.string.wallpaper_default_name)
+                        : DefaultWallpaper.isChoice(wallpaperCurrent) ? localName(builtinName(wallpaperCurrent))
                         : wallpaperCurrent != null ? localName(wallpaperLabel(wallpaperCurrent))
                         : getString(R.string.wallpaper_theme_default)));
         slideshowYes.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,

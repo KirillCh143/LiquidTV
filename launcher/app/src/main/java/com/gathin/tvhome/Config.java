@@ -394,6 +394,26 @@ final class Config {
         return ctx.getExternalFilesDir(null);
     }
 
+    /** The pictures of the slideshow collection: the built-in ones first, then the downloaded ones, in name order. */
+    private static List<File> slideshowFiles(Context ctx, File dir, java.util.Set<String> ids) {
+        List<File> files = new ArrayList<>();
+        if (ids.contains(DefaultWallpaper.CHOICE)) {
+            File f = DefaultWallpaper.fileFor(ctx, DefaultWallpaper.CHOICE);
+            if (f != null) files.add(f);
+        }
+        for (String[] extra : DefaultWallpaper.EXTRA) {
+            if (!ids.contains(extra[0])) continue;
+            File f = DefaultWallpaper.fileFor(ctx, extra[0]);
+            if (f != null) files.add(f);
+        }
+        if (dir != null) {
+            for (File image : WallpaperRotation.images(new File(dir, "wallpapers"))) {
+                if (ids.contains(image.getName())) files.add(image);
+            }
+        }
+        return files;
+    }
+
     static Config load(Context ctx) {
         Resources res = ctx.getResources();
         List<String> dock = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.dock_apps)));
@@ -622,15 +642,28 @@ final class Config {
         // Local patch: the built-in wallpaper (DefaultWallpaper) is what shows when nothing else does. Picked
         // explicitly ("default", the reset row in Launcher settings) it always wins; with no pick and no theme
         // picture, the downloaded collection shows if there is one, and the built-in one until then.
-        if (wallpaperEnabled && (DefaultWallpaper.CHOICE.equals(wallpaperChoice)
+        if (wallpaperEnabled && (DefaultWallpaper.isChoice(wallpaperChoice)
                 || (wallpaperChoice == null && wallpapers.isEmpty()))) {
-            List<File> collection = DefaultWallpaper.CHOICE.equals(wallpaperChoice) || dir == null
+            List<File> collection = DefaultWallpaper.isChoice(wallpaperChoice) || dir == null
                     ? Collections.<File>emptyList() : WallpaperRotation.images(new File(dir, "wallpapers"));
-            File builtIn = collection.isEmpty() ? DefaultWallpaper.file(ctx) : null;
+            File builtIn = collection.isEmpty() ? DefaultWallpaper.fileFor(ctx, wallpaperChoice) : null;
             if (!collection.isEmpty() || builtIn != null) {
                 wallpapers.clear();
                 wallpapers.addAll(collection.isEmpty() ? Collections.singletonList(builtIn) : collection);
                 wallpaper = wallpapers.get(0);
+            }
+        }
+        // Local patch: the on-TV slideshow (Launcher settings, "Slideshow") rotates the chosen collection on Home
+        // every N minutes, through the same rotation WallpaperPlayer already runs for a theme's collection.
+        if (choices.getBoolean("slideshow", false)) {
+            List<File> show = slideshowFiles(ctx, dir, choices.getStringSet("slideshow_set", Collections.<String>emptySet()));
+            if (!show.isEmpty()) {
+                wallpapers.clear();
+                wallpapers.addAll(show);
+                wallpaper = show.get(0);
+                wallpaperEnabled = true;
+                rotationMinutes = Math.max(1, choices.getInt("slideshow_minutes", 1));
+                wallpaperOrder = WallpaperRotation.ORDER_SEQUENTIAL;
             }
         }
         // A festive skin comes only from a theme; config.xml has no festival.

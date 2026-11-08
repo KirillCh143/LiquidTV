@@ -187,7 +187,7 @@
     <string name="dl_progress">Downloading %1$d of %2$d: %3$s</string>
     <string name="dl_done">Done: %1$d new, %2$d already there</string>
     <string name="dl_failed">No connection, or GitHub is unavailable</string>
-    <string name="wallpaper_reset">Reset wallpaper settings</string>
+    <string name="wallpaper_reset">Delete wallpapers from GitHub</string>
     <string name="wallpaper_default_name">Aurora</string>
     <string name="wallpapers_manage">Wallpaper management</string>
     <string name="slideshow_params">Slideshow options</string>
@@ -201,4 +201,9 @@
     <string name="slideshow_label">Slideshow</string>
     <string name="wallpapers_standard">Standard wallpapers</string>
     <string name="wallpapers_other">Other wallpapers</string>
+    <string name="wallpapers_github_deleted">GitHub wallpapers deleted</string>
+    <string name="wallpapers_github_none">No wallpapers from GitHub to delete</string>
+    <string name="wallpapers_advanced">Advanced options</string>
+    <string name="slideshow_collection">Slideshow collection</string>
+    <string name="slideshow_collection_state">Slideshow collection: %1$d</string>
 </resources>
