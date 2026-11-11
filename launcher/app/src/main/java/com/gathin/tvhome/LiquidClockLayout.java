@@ -72,7 +72,7 @@ final class LiquidClockLayout extends FrameLayout {
         addView(wallpaper, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         shadow = new ImageView(context);
         shadow.setScaleType(ImageView.ScaleType.FIT_XY);
-        shadow.setColorFilter(0x30000000, android.graphics.PorterDuff.Mode.SRC_IN);   // the digits' shape in black at 19%
+        shadow.setColorFilter(0x55000000, android.graphics.PorterDuff.Mode.SRC_IN);   // the digits' shape in black at 33%
         shadow.setTranslationY(5f * density);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             shadow.setRenderEffect(RenderEffect.createBlurEffect(18f * density, 18f * density, Shader.TileMode.CLAMP));
@@ -90,6 +90,17 @@ final class LiquidClockLayout extends FrameLayout {
         dateView.setSingleLine(true);
         dateView.setShadowLayer(10f * density, 0, 2f * density, 0x55000000);
         addView(dateView, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+        // "Dock panel opacity" (Launcher settings) darkens the digits the way it darkens the dock's band.
+        int opacity = 0;
+        boolean light = false;
+        try {
+            Config config = Config.load(context);
+            opacity = config.dockOpacity;
+            light = Config.dockLightGlass(config);   // dock_glass on the "liquid" backdrop: the dock's white band
+        } catch (RuntimeException ignored) {
+            // no tint
+        }
+        layer.setTint(light, opacity);
         blurBase = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? blurRecipe(context) : null;
     }
 
@@ -254,6 +265,7 @@ final class LiquidClockLayout extends FrameLayout {
         dateView.setTranslationX((w - dateView.getMeasuredWidth()) / 2f);
         dateView.setTranslationY(baseline + h * 0.05f);
         mask = next;
+        layer.setGradient(top, baseline);
         layer.setMask(next);
         shadow.setImageBitmap(next);
         applyEffect(next);
@@ -269,8 +281,8 @@ final class LiquidClockLayout extends FrameLayout {
             try {
                 RuntimeShader shader = new RuntimeShader(TextGlassShader.SOURCE);
                 shader.setInputShader("mask", new BitmapShader(maskBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
-                // The dock's own numbers: a 2dp edge band, the peak displacement 34dp.
-                shader.setFloatUniform("refractionHeight", 2f * density);
+                // An edge band of 1dp (the dock uses 2dp), the peak displacement 34dp as at the dock.
+                shader.setFloatUniform("refractionHeight", 1f * density);
                 shader.setFloatUniform("refractionAmount", 34f * density);
                 effect = RenderEffect.createChainEffect(
                         RenderEffect.createRuntimeShaderEffect(shader, "content"), blurBase);
@@ -285,6 +297,11 @@ final class LiquidClockLayout extends FrameLayout {
     private static final class GlassLayer extends FrameLayout {
         private final Paint keep = new Paint(Paint.ANTI_ALIAS_FLAG);
         private Bitmap mask;
+        /** The dock band's own tint, laid over the glass: dark (#141416) at the dock opacity, or with dock_glass the
+         *  dock's white gradient (32% fading to 18% down the digits) at that opacity. */
+        private boolean light;
+        private int opacityPercent;
+        private float gradientTop, gradientBottom;
 
         GlassLayer(Context context) {
             super(context);
@@ -295,11 +312,34 @@ final class LiquidClockLayout extends FrameLayout {
             this.mask = mask;
         }
 
+        void setTint(boolean light, int opacityPercent) {
+            this.light = light;
+            this.opacityPercent = opacityPercent;
+        }
+
+        /** The digits' top and baseline, where the light tint's gradient starts and ends. */
+        void setGradient(float top, float bottom) {
+            gradientTop = top;
+            gradientBottom = bottom;
+        }
+
         @Override
         protected void dispatchDraw(Canvas canvas) {
             if (mask == null) return;
             int saved = canvas.saveLayer(0, 0, getWidth(), getHeight(), null);
             super.dispatchDraw(canvas);
+            int alpha = Math.round(opacityPercent * 2.55f);
+            if (alpha != 0) {
+                if (light) {
+                    Paint white = new Paint();
+                    white.setShader(new android.graphics.LinearGradient(0, gradientTop, 0, gradientBottom,
+                            0x52FFFFFF, 0x2EFFFFFF, Shader.TileMode.CLAMP));
+                    white.setAlpha(alpha);   // scales the gradient, as the dock band's own alpha does
+                    canvas.drawRect(0, 0, getWidth(), getHeight(), white);
+                } else {
+                    canvas.drawColor((alpha << 24) | 0x141416);
+                }
+            }
             canvas.drawBitmap(mask, 0, 0, keep);
             canvas.restoreToCount(saved);
         }

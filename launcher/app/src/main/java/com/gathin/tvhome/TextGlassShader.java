@@ -58,8 +58,8 @@ final class TextGlassShader {
             + "\n"
             + "    float2 lightDir = normalize(float2(-0.5, -1.0));\n"
             + "    float highlight = max(dot(grad, lightDir), 0.0) * edge;\n"
-            // A frosted lift across the glyph and a brighter sheen on its lit edge, so the digits read on any picture.
-            + "    base.rgb += half3(0.10 + highlight * 0.45);\n"
+            // The sheen on the lit edge only; no frosted lift across the glyph.
+            + "    base.rgb += half3(highlight * 0.45);\n"
             + "    return half4(base.rgb, 1.0);\n"
             + "}\n";
 }
