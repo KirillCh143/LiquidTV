@@ -117,6 +117,44 @@
                     android:duplicateParentState="true" />
             </LinearLayout>
 
+            <LinearLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/navApps"
+                style="@style/SettingsNavItem">
+
+                <ImageView
+                    style="@style/SettingsNavChip"
+                    android:src="@drawable/ic_tabler_apps"
+                    android:tint="@drawable/settings_nav_icon"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    style="@style/SettingsNavLabel"
+                    android:text="@string/nav_apps"
+                    android:duplicateParentState="true" />
+            </LinearLayout>
+
+            <LinearLayout
+            android:clipChildren="false"
+            android:clipToPadding="false"
+                android:id="@+id/navAbout"
+                style="@style/SettingsNavItem">
+
+                <ImageView
+                    style="@style/SettingsNavChip"
+                    android:src="@drawable/ic_tabler_info"
+                    android:tint="@drawable/settings_nav_icon"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    style="@style/SettingsNavLabel"
+                    android:text="@string/nav_about"
+                    android:duplicateParentState="true" />
+            </LinearLayout>
+
         </LinearLayout>
     </LinearLayout>
 
@@ -204,11 +242,6 @@
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp"
                 android:visibility="gone" />
-
-            <com.gathin.tvhome.SettingsValueRow
-                android:id="@+id/libraryShowHiddenChoice"
-                style="@style/SettingsRow"
-                android:layout_marginBottom="5dp" />
 
             <TextView
                 android:id="@+id/followThemeChoice"
@@ -521,6 +554,127 @@
                     android:layout_marginBottom="5dp"
                     android:text="@string/wallpaper_reset" />
             </LinearLayout>
+            </ScrollView>
+
+            <ScrollView
+                android:id="@+id/pageApps"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="-30dp"
+                android:layout_marginEnd="-30dp"
+                android:paddingStart="30dp"
+                android:paddingEnd="30dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:requiresFadingEdge="vertical"
+                android:fadingEdgeLength="72dp"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="16dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="vertical">
+
+                    <TextView style="@style/SettingsSection" android:text="@string/apps_section_hidden" />
+
+                    <com.gathin.tvhome.SettingsValueRow
+                        android:id="@+id/libraryShowHiddenChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp" />
+
+                    <com.gathin.tvhome.SettingsValueRow
+                        android:id="@+id/hiddenAppsChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp" />
+
+                    <TextView
+                        android:id="@+id/resetAppsChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp"
+                        android:text="@string/apps_reset" />
+                </LinearLayout>
+            </ScrollView>
+
+            <ScrollView
+                android:id="@+id/pageAbout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="-30dp"
+                android:layout_marginEnd="-30dp"
+                android:paddingStart="30dp"
+                android:paddingEnd="30dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:requiresFadingEdge="vertical"
+                android:fadingEdgeLength="72dp"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="16dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="vertical">
+
+                    <TextView style="@style/SettingsSection" android:text="@string/about_section_app" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="5dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:background="@drawable/settings_group_bg"
+                        android:orientation="vertical">
+
+                        <com.gathin.tvhome.SettingsValueRow
+                            android:id="@+id/aboutHome"
+                            style="@style/SettingsInfoRow" />
+
+                        <com.gathin.tvhome.SettingsValueRow
+                            android:id="@+id/aboutDeveloper"
+                            style="@style/SettingsInfoRow" />
+
+                        <com.gathin.tvhome.SettingsValueRow
+                            android:id="@+id/aboutVersion"
+                            style="@style/SettingsInfoRow" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/SettingsSection"
+                        android:layout_marginTop="19dp"
+                        android:text="@string/about_section_backup" />
+
+                    <com.gathin.tvhome.SettingsValueRow
+                        android:id="@+id/aboutBackupChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp" />
+
+                    <TextView
+                        android:id="@+id/aboutRestoreChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp"
+                        android:text="@string/about_restore" />
+
+                    <TextView style="@style/SettingsHint" android:layout_marginBottom="5dp" android:text="@string/about_backup_hint" />
+
+                    <TextView
+                        style="@style/SettingsSection"
+                        android:layout_marginTop="19dp"
+                        android:text="@string/about_section_reset" />
+
+                    <TextView
+                        android:id="@+id/aboutResetChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp"
+                        android:text="@string/about_reset" />
+                </LinearLayout>
             </ScrollView>
 
         </FrameLayout>

@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,6 +20,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /** Remote-friendly settings owned by the launcher; system settings stay one row away. */
 public final class LauncherSettingsActivity extends Activity {
@@ -39,6 +41,8 @@ public final class LauncherSettingsActivity extends Activity {
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
     private TextView libraryShowHiddenChoice;
     /** Slideshow parameters; stored only, nothing reads them yet. */
+    private TextView aboutBackupChoice, hiddenAppsChoice;
+    private final java.util.Set<String> hiddenNow = new java.util.HashSet<>();
     private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo, slideshowCollectionChoice, screensaverChoice;
     /** What the two tiles of the shared two-choice sub-page mean: 0 Slideshow Yes/No, 1 Screensaver type. */
     private int twoChoiceMode;
@@ -142,6 +146,22 @@ public final class LauncherSettingsActivity extends Activity {
             openOnStartChoice.setVisibility(View.VISIBLE);
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
+        hiddenAppsChoice = findViewById(R.id.hiddenAppsChoice);
+        hiddenAppsChoice.setOnClickListener(v -> openHiddenApps());
+        findViewById(R.id.resetAppsChoice).setOnClickListener(v -> new AlertDialog.Builder(this, R.style.SettingsDialog)
+                .setTitle(R.string.apps_reset_title)
+                .setMessage(R.string.apps_reset_message)
+                .setPositiveButton(R.string.about_reset_confirm, (dialog, which) -> {
+                    LibraryApps.clearHidden(this);
+                    libraryShowHidden = false;
+                    choices.edit().remove("library_show_hidden").apply();
+                    hiddenNow.clear();
+                    changed();
+                    refresh();
+                    Toast.makeText(this, R.string.apps_reset_done, Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
         libraryShowHiddenChoice = findViewById(R.id.libraryShowHiddenChoice);
         libraryShowHiddenChoice.setOnClickListener(v -> {
             libraryShowHidden = !libraryShowHidden;
@@ -170,10 +190,13 @@ public final class LauncherSettingsActivity extends Activity {
         });
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
+        setUpAbout();
         setUpNav();
         // Rows scrolled out of a page go under the page's title (cut at the scroller's edge, faded over the last
         // 72dp by its fading edge), not over it; the sides stay open for the focused row's growth.
         clipAtEdges(findViewById(R.id.pagePersonal));
+        clipAtEdges(findViewById(R.id.pageAbout));
+        clipAtEdges(findViewById(R.id.pageApps));
         clipAtEdges(findViewById(R.id.pageWallpaper));
         clipAtEdges(findViewById(R.id.subWallpaperScroll));
         loadWallpaper();
@@ -208,15 +231,205 @@ public final class LauncherSettingsActivity extends Activity {
     /** The left menu: focusing an entry opens its page. Pages 2 and 3 are empty for now. */
     private void setUpNav() {
         nav = new View[]{findViewById(R.id.navPersonal), findViewById(R.id.navProfile),
-                findViewById(R.id.navWallpaper)};
+                findViewById(R.id.navWallpaper), findViewById(R.id.navApps), findViewById(R.id.navAbout)};
         pages = new View[]{findViewById(R.id.pagePersonal), findViewById(R.id.pageProfile),
-                findViewById(R.id.pageWallpaper)};
+                findViewById(R.id.pageWallpaper), findViewById(R.id.pageApps), findViewById(R.id.pageAbout)};
         for (int i = 0; i < nav.length; i++) {
             final int index = i;
             nav[i].setOnFocusChangeListener((v, has) -> { if (has && !navLock) showPage(index); });
             nav[i].setOnClickListener(v -> showPage(index));
         }
         showPage(0);
+    }
+
+    /** The About page: what this launcher is, and its settings backup, restore and reset. */
+    private void setUpAbout() {
+        String version = "";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            // shown empty
+        }
+        ((TextView) findViewById(R.id.aboutHome)).setText(getString(R.string.about_home) + ": LiquidTV");
+        ((TextView) findViewById(R.id.aboutDeveloper)).setText(getString(R.string.about_developer) + ": KirillCh143");
+        ((TextView) findViewById(R.id.aboutVersion)).setText(getString(R.string.about_version) + ": " + version);
+        aboutBackupChoice = findViewById(R.id.aboutBackupChoice);
+        aboutBackupChoice.setText(getString(R.string.about_backup_save) + ": Download/" + SettingsBackup.FILE_NAME);
+        aboutBackupChoice.setOnClickListener(v -> {
+            try {
+                Toast.makeText(this, getString(R.string.about_saved, SettingsBackup.save(this)), Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                Toast.makeText(this, R.string.about_save_failed, Toast.LENGTH_LONG).show();
+            }
+        });
+        findViewById(R.id.aboutRestoreChoice).setOnClickListener(v -> {
+            try {
+                if (!SettingsBackup.restore(this)) {
+                    Toast.makeText(this, R.string.about_no_backup, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                afterSettingsReplaced(R.string.about_restored);
+            } catch (Exception e) {
+                Toast.makeText(this, R.string.about_restore_failed, Toast.LENGTH_LONG).show();
+            }
+        });
+        findViewById(R.id.aboutResetChoice).setOnClickListener(v -> new AlertDialog.Builder(this, R.style.SettingsDialog)
+                .setTitle(R.string.about_reset_title)
+                .setMessage(R.string.about_reset_message)
+                .setPositiveButton(R.string.about_reset_confirm, (dialog, which) -> {
+                    SettingsBackup.reset(this);
+                    afterSettingsReplaced(R.string.about_reset_done);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
+    }
+
+    /** The saved choices were replaced (restore or reset): Home rebuilds on resume, and this screen reads them afresh. */
+    private void afterSettingsReplaced(int message) {
+        changed();
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        recreate();
+    }
+
+    private void addBackRow(LinearLayout list, float dp) {
+        TextView back = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsBackRow), null, 0);
+        back.setText(R.string.settings_back);
+        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (40 * dp));
+        backParams.topMargin = (int) (16 * dp);
+        backParams.bottomMargin = (int) (4 * dp);
+        back.setLayoutParams(backParams);
+        back.setOnClickListener(v -> closeSub());
+        list.addView(back);
+    }
+
+    /** Every app that has a launcher entry (TV or not), by name, without this launcher itself. */
+    private List<android.content.pm.ResolveInfo> launchableApps(Map<String, String> names) {
+        PackageManager pm = getPackageManager();
+        Map<String, android.content.pm.ResolveInfo> byPackage = new java.util.LinkedHashMap<>();
+        for (String category : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
+            for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(category), 0)) {
+                String pkg = ri.activityInfo.packageName;
+                if (!pkg.equals(getPackageName()) && !byPackage.containsKey(pkg)) byPackage.put(pkg, ri);
+            }
+        }
+        List<android.content.pm.ResolveInfo> apps = new ArrayList<>(byPackage.values());
+        Collections.sort(apps, (a, b) -> labelOf(a, names).compareToIgnoreCase(labelOf(b, names)));
+        return apps;
+    }
+
+    private String labelOf(android.content.pm.ResolveInfo ri, Map<String, String> names) {
+        String custom = names.get(ri.activityInfo.packageName);
+        return custom != null && !custom.isEmpty() ? custom : ri.loadLabel(getPackageManager()).toString();
+    }
+
+    /** "Manage hidden apps": every app as a row, a green check on the ones that are hidden (the same list
+     *  the apps screen's "Hide app" action keeps). A tick hides the app, another takes it back. */
+    private void openHiddenApps() {
+        navLock = true;
+        subRow = hiddenAppsChoice;
+        subOpen = true;
+        findViewById(R.id.pageApps).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.apps_manage_hidden_title);
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        addBackRow(list, dp);
+        hiddenNow.clear();
+        hiddenNow.addAll(LibraryApps.loadHidden(this));
+        Map<String, String> names = LibraryNames.load(this);
+        List<android.content.pm.ResolveInfo> apps = launchableApps(names);
+        View first = null;
+        for (android.content.pm.ResolveInfo ri : apps) {
+            View row = appRow(dp, ri, labelOf(ri, names));
+            list.addView(row);
+            if (first == null) first = row;
+        }
+        if (apps.isEmpty()) Toast.makeText(this, R.string.apps_hidden_none, Toast.LENGTH_SHORT).show();
+        if (first != null) first.requestFocus();
+        navLock = false;
+    }
+
+    /** One app as a row, like a wallpaper in the picker: its picture, its name, and a tick when it is hidden. */
+    private TextView appRow(float dp, android.content.pm.ResolveInfo ri, String label) {
+        final String pkg = ri.activityInfo.packageName;
+        TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+        row.setText(label);
+        row.setCompoundDrawablePadding((int) (14 * dp));
+        row.setCompoundDrawableTintList(null);
+        row.setMinHeight((int) (52 * dp));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+        rowParams.bottomMargin = (int) (12 * dp) - 12;
+        row.setLayoutParams(rowParams);
+        setTick(row, hiddenNow.contains(pkg));
+        row.setOnClickListener(v -> {
+            boolean hide = !hiddenNow.contains(pkg);
+            if (!LibraryApps.setHidden(this, pkg, hide)) {
+                Toast.makeText(this, R.string.about_save_failed, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (hide) hiddenNow.add(pkg); else hiddenNow.remove(pkg);
+            setTick(row, hide);
+            changed();
+        });
+        int w = (int) (64 * dp), h = (int) (36 * dp);
+        thumbs.execute(() -> {
+            PackageManager pm = getPackageManager();
+            android.graphics.drawable.Drawable art = ri.activityInfo.loadBanner(pm);
+            if (art == null) art = ri.activityInfo.applicationInfo.loadBanner(pm);
+            boolean banner = art != null;
+            if (art == null) art = ri.loadIcon(pm);
+            android.graphics.Bitmap thumb = appThumb(art, banner, w, h, 5 * dp);
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                android.graphics.drawable.Drawable d = new android.graphics.drawable.BitmapDrawable(getResources(), thumb);
+                d.setBounds(0, 0, w, h);
+                row.setCompoundDrawablesRelative(d, null, row.getCompoundDrawablesRelative()[2], null);
+            });
+        });
+        return row;
+    }
+
+    /** The row's tick: green when the app is hidden, an empty ring otherwise (the wallpaper picker's own). */
+    private void setTick(TextView row, boolean hidden) {
+        android.graphics.drawable.Drawable tick = getDrawable(hidden ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked);
+        android.graphics.drawable.Drawable[] d = row.getCompoundDrawablesRelative();
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(d[0], null, tick, null);
+        if (d[0] != null) d[0].setBounds(0, 0, d[0].getBounds().width(), d[0].getBounds().height());
+    }
+
+    /** A banner is cropped to a rounded preview like the wallpapers'; an icon is centred as it is, on nothing. */
+    private static android.graphics.Bitmap appThumb(android.graphics.drawable.Drawable art, boolean banner, int w, int h, float radius) {
+        android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(out);
+        if (!banner) {
+            int side = Math.min(w, h);
+            art.setBounds((w - side) / 2, 0, (w + side) / 2, side);
+            art.draw(canvas);
+            return out;
+        }
+        int src = canvas.saveLayer(0, 0, w, h, null);
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        canvas.drawRoundRect(new android.graphics.RectF(0, 0, w, h), radius, radius, paint);
+        paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
+        float bw = Math.max(art.getIntrinsicWidth(), 1), bh = Math.max(art.getIntrinsicHeight(), 1);
+        float scale = Math.max(w / bw, h / bh);
+        float dw = bw * scale, dh = bh * scale;
+        android.graphics.Bitmap raw = android.graphics.Bitmap.createBitmap((int) bw, (int) bh, android.graphics.Bitmap.Config.ARGB_8888);
+        art.setBounds(0, 0, (int) bw, (int) bh);
+        art.draw(new android.graphics.Canvas(raw));
+        canvas.drawBitmap(raw, null, new android.graphics.RectF((w - dw) / 2f, (h - dh) / 2f, (w + dw) / 2f, (h + dh) / 2f), paint);
+        canvas.restoreToCount(src);
+        raw.recycle();
+        return out;
     }
 
     /** The right pane's sub-page, with its fixed Back row (the wallpaper picker hides it for a Back row that scrolls). */
@@ -240,7 +453,7 @@ public final class LauncherSettingsActivity extends Activity {
         }
         page = index;
         ((TextView) findViewById(R.id.pageTitle)).setText(
-                new int[]{R.string.nav_personalization, R.string.nav_profile, R.string.nav_screensaver_wallpaper}[index]);
+                new int[]{R.string.nav_personalization, R.string.nav_profile, R.string.nav_screensaver_wallpaper, R.string.nav_apps, R.string.nav_about}[index]);
         for (int i = 0; i < nav.length; i++) {
             nav[i].setSelected(i == index);
             pages[i].setVisibility(i == index ? View.VISIBLE : View.GONE);
@@ -269,6 +482,8 @@ public final class LauncherSettingsActivity extends Activity {
             if (inNav(f) && toContent) {
                 if (page == 0) columnsChoice.requestFocus();
                 else if (page == 2) wallpaperChoice.requestFocus();
+                else if (page == 3) libraryShowHiddenChoice.requestFocus();
+                else if (page == 4) aboutBackupChoice.requestFocus();
                 return true;
             }
             if (!inNav(f) && !(f instanceof StepSlider) && toNav) {
@@ -473,11 +688,12 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = true;
         subOpen = false;
         if (downloadCancel != null) downloadCancel.set(true);
+        boolean fromApps = subRow == hiddenAppsChoice;
         boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowCollectionChoice || subRow == screensaverChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
         findViewById(R.id.pageSub).setVisibility(View.GONE);
-        findViewById(fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
-        ((TextView) findViewById(R.id.pageTitle)).setText(fromWallpapers ? R.string.nav_screensaver_wallpaper
-                : R.string.nav_personalization);
+        findViewById(fromApps ? R.id.pageApps : fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(fromApps ? R.string.nav_apps : fromWallpapers
+                ? R.string.nav_screensaver_wallpaper : R.string.nav_personalization);
         refresh();
         if (subRow != null) subRow.requestFocus();
         navLock = false;
@@ -563,14 +779,7 @@ public final class LauncherSettingsActivity extends Activity {
         float dp = getResources().getDisplayMetrics().density;
         // Back is the first row of the list, so it scrolls away with the rest instead of staying put.
         findViewById(R.id.subBack).setVisibility(View.GONE);
-        TextView back = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsBackRow), null, 0);
-        back.setText(R.string.settings_back);
-        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (40 * dp));
-        backParams.topMargin = (int) (16 * dp);
-        backParams.bottomMargin = (int) (4 * dp);
-        back.setLayoutParams(backParams);
-        back.setOnClickListener(v -> closeSub());
-        list.addView(back);
+        addBackRow(list, dp);
 
         addWallpaperSection(list, getString(R.string.wallpapers_standard), dp);
         addWallpaperRow(list, getString(R.string.wallpaper_default_name), DefaultWallpaper.CHOICE, null, dp);
@@ -801,6 +1010,7 @@ public final class LauncherSettingsActivity extends Activity {
         slideshowIntervalChoice.setText(getString(R.string.slideshow_interval_state,
                 getString(R.string.slideshow_minutes, slideshowMinutes)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
+        hiddenAppsChoice.setText(getString(R.string.apps_manage_hidden) + ": " + LibraryApps.loadHidden(this).size());
         libraryShowHiddenChoice.setText(getString(R.string.library_show_hidden_state,
                 getString(libraryShowHidden ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());

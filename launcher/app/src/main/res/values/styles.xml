@@ -50,6 +50,13 @@
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
     </style>
+    <!-- A line of the About page that only shows a value: no wash, not focusable. -->
+    <style name="SettingsInfoRow" parent="SettingsRow">
+        <item name="android:background">@null</item>
+        <item name="android:focusable">false</item>
+        <item name="android:clickable">false</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
     <style name="SettingsColumnChoice" parent="SettingsRow">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">34dp</item>
