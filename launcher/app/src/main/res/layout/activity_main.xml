@@ -366,7 +366,7 @@
                     android:format24Hour="HH:mm"
                     android:fontFeatureSettings="tnum"
                     android:contentDescription="@string/menu"
-                    android:drawableEnd="@drawable/ic_user_circle"
+                    android:drawableEnd="@drawable/ic_user_circle_large"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>
