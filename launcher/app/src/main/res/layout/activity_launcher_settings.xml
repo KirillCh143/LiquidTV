@@ -69,7 +69,7 @@
                 <ImageView
                     style="@style/SettingsNavChip"
                     android:src="@drawable/ic_picture"
-                    android:tint="@drawable/settings_nav_text"
+                    android:tint="@drawable/settings_nav_icon"
                     android:duplicateParentState="true"
                     android:importantForAccessibility="no" />
 
@@ -88,7 +88,7 @@
                 <ImageView
                     style="@style/SettingsNavChip"
                     android:src="@drawable/ic_user_circle"
-                    android:tint="@drawable/settings_nav_text"
+                    android:tint="@drawable/settings_nav_icon"
                     android:duplicateParentState="true"
                     android:importantForAccessibility="no" />
 
@@ -107,7 +107,7 @@
                 <ImageView
                     style="@style/SettingsNavChip"
                     android:src="@drawable/ic_tabler_moon"
-                    android:tint="@drawable/settings_nav_text"
+                    android:tint="@drawable/settings_nav_icon"
                     android:duplicateParentState="true"
                     android:importantForAccessibility="no" />
 
