@@ -171,6 +171,11 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
         setUpNav();
+        // Rows scrolled out of a page go under the page's title (cut at the scroller's edge, faded over the last
+        // 72dp by its fading edge), not over it; the sides stay open for the focused row's growth.
+        clipAtEdges(findViewById(R.id.pagePersonal));
+        clipAtEdges(findViewById(R.id.pageWallpaper));
+        clipAtEdges(findViewById(R.id.subWallpaperScroll));
         loadWallpaper();
         // Draw the wallpaper previews now, in the background, so the picker opens with them already in the cache.
         float dp = getResources().getDisplayMetrics().density;
@@ -212,6 +217,13 @@ public final class LauncherSettingsActivity extends Activity {
             nav[i].setOnClickListener(v -> showPage(index));
         }
         showPage(0);
+    }
+
+    private void clipAtEdges(View scroller) {
+        scroller.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            int side = (int) (60 * getResources().getDisplayMetrics().density);
+            v.setClipBounds(new android.graphics.Rect(-side, 0, r - l + side, b - t));
+        });
     }
 
     private void showPage(int index) {
@@ -539,12 +551,6 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
         ((TextView) findViewById(R.id.pageTitle)).setText(multi ? R.string.slideshow_collection : R.string.wallpaper_label);
         LinearLayout list = findViewById(R.id.subWallpaperList);
-        // Cut the list at the top and bottom only, so the focused row can grow past the sides.
-        android.view.View scroll = findViewById(R.id.subWallpaperScroll);
-        scroll.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            int side = (int) (40 * getResources().getDisplayMetrics().density);
-            v.setClipBounds(new android.graphics.Rect(-side, 0, r - l + side, b - t));
-        });
         list.removeAllViews();
         wallpaperRows.clear();
         float dp = getResources().getDisplayMetrics().density;

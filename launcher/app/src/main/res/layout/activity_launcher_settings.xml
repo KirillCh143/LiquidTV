@@ -126,13 +126,14 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="0.64"
-        android:paddingTop="5dp"
         android:orientation="vertical">
 
+        <!-- On the same line as the sidebar's title; the 5dp it used to sit lower moves below it, so the rows stay put. -->
         <TextView
             android:id="@+id/pageTitle"
             android:layout_width="match_parent"
             android:layout_height="40dp"
+            android:layout_marginBottom="5dp"
             android:fontFamily="@string/font_medium"
             android:gravity="center_vertical"
             android:paddingStart="4dp"
@@ -155,9 +156,10 @@
         android:layout_marginEnd="-30dp"
         android:paddingStart="30dp"
         android:paddingEnd="30dp"
+        android:requiresFadingEdge="vertical"
+        android:fadingEdgeLength="72dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:paddingBottom="16dp"
         android:scrollbars="none">
 
         <LinearLayout
@@ -165,6 +167,7 @@
         android:clipToPadding="false"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingBottom="16dp"
             android:orientation="vertical">
 
             <TextView style="@style/SettingsSection" android:text="@string/settings_section_look" />
@@ -365,8 +368,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
+                    android:layout_marginStart="-30dp"
+                    android:layout_marginEnd="-30dp"
+                    android:paddingStart="30dp"
+                    android:paddingEnd="30dp"
                     android:clipChildren="false"
                     android:clipToPadding="false"
+                    android:requiresFadingEdge="vertical"
+                    android:fadingEdgeLength="72dp"
                     android:scrollbars="none"
                     android:visibility="gone">
 
@@ -433,14 +442,28 @@
                 android:layout_height="match_parent"
                 android:visibility="gone" />
 
-            <LinearLayout
-            android:clipChildren="false"
-            android:clipToPadding="false"
+            <ScrollView
                 android:id="@+id/pageWallpaper"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
+                android:layout_marginStart="-30dp"
+                android:layout_marginEnd="-30dp"
+                android:paddingStart="30dp"
+                android:paddingEnd="30dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:requiresFadingEdge="vertical"
+                android:fadingEdgeLength="72dp"
+                android:scrollbars="none"
                 android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="16dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical">
 
                 <TextView
                     style="@style/SettingsSection"
@@ -498,6 +521,7 @@
                     android:layout_marginBottom="5dp"
                     android:text="@string/wallpaper_reset" />
             </LinearLayout>
+            </ScrollView>
 
         </FrameLayout>
 
