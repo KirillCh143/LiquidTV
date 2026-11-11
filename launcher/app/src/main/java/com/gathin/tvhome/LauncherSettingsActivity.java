@@ -37,21 +37,21 @@ public final class LauncherSettingsActivity extends Activity {
     private final String[] backdropNames = new String[BACKDROPS.length];
 
     /** Appends the Android-version note to a backdrop row, in regular weight (the row itself is bold). */
-    private void addBackdropNote(TextView row, int noteRes) {
+    /** A backdrop's row, with its description and the Android version it needs in a hint under it (like the backup
+     *  hint in About). A backdrop this device cannot show (minSdk above the running Android) is dimmed, with its hint,
+     *  and cannot be focused or chosen. */
+    private void describeBackdrop(TextView row, int hintId, int descRes, int requirementRes, int minSdk) {
         String name = row.getText().toString();
         for (int i = 0; i < backdropChoices.length; i++) if (backdropChoices[i] == row) backdropNames[i] = name;
-        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(name + " ");
-        int start = sb.length();
-        sb.append(getString(noteRes));
-        sb.setSpan(new android.text.style.MetricAffectingSpan() {
-            @Override public void updateDrawState(android.text.TextPaint tp) { regular(tp); }
-            @Override public void updateMeasureState(android.text.TextPaint tp) { regular(tp); }
-            private void regular(android.text.TextPaint tp) {
-                tp.setTypeface(android.graphics.Typeface.create(tp.getTypeface(), android.graphics.Typeface.NORMAL));
-                tp.setFakeBoldText(false);
-            }
-        }, start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        row.setText(sb);
+        TextView hint = findViewById(hintId);
+        hint.setText(getString(descRes) + (requirementRes != 0 ? "\n" + getString(requirementRes) : ""));
+        if (android.os.Build.VERSION.SDK_INT < minSdk) {
+            row.setEnabled(false);
+            row.setFocusable(false);
+            row.setClickable(false);
+            row.setAlpha(0.4f);
+            hint.setAlpha(0.4f);
+        }
     }
     private TextView wallpaperChoice;
     private TextView animationsChoice;
@@ -59,7 +59,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView openOnStartChoice;
     /** Local patch, not upstream: whether AppLibraryActivity's catalogue shows apps hidden with its own
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
-    private TextView libraryShowHiddenChoice;
+    private TextView libraryShowHiddenChoice, tileOutlineChoice;
     /** Slideshow parameters; stored only, nothing reads them yet. */
     private TextView aboutBackupChoice, hiddenAppsChoice, profileNameChoice, profileAvatarChoice, sleepTimerChoice, screensaverUseChoice;
     private final java.util.Set<String> hiddenNow = new java.util.HashSet<>();
@@ -82,12 +82,16 @@ public final class LauncherSettingsActivity extends Activity {
     private String dockBackdrop;
     private boolean animations;
     private boolean libraryShowHidden;
+    /** The Monochrome backdrop was on when this screen's colours were set up (rows are darker then). */
+    private boolean monoApplied;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         menuDarkApplied = Config.dark(this, Config.PART_MENU);
         if (menuDarkApplied) getTheme().applyStyle(R.style.SettingsDark, true);
+        monoApplied = Config.BACKDROP_COLOR.equals(Config.load(this).dockBackdrop);
+        if (monoApplied) getTheme().applyStyle(menuDarkApplied ? R.style.SettingsMonoDark : R.style.SettingsMonoLight, true);
         setContentView(R.layout.activity_launcher_settings);
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
@@ -107,6 +111,12 @@ public final class LauncherSettingsActivity extends Activity {
                     choices.edit().putInt("columns", columns).apply();
                     changed();
                 }, i -> String.valueOf(MIN_COLUMNS + i)));
+        tileOutlineChoice = findViewById(R.id.tileOutlineChoice);
+        tileOutlineChoice.setOnClickListener(v -> {
+            choices.edit().putBoolean(Config.TILE_OUTLINE_KEY, !Config.tileOutline(this)).apply();
+            changed();
+            refresh();
+        });
         tileRadiusChoice = findViewById(R.id.tileRadiusChoice);
         tileRadiusChoice.setOnClickListener(v -> openSub(tileRadiusChoice, R.string.tile_radius_label, R.string.tile_radius_desc, 0,
                 Config.MAX_TILE_RADIUS + 1, Config.tileRadius(this), i -> {
@@ -138,13 +148,25 @@ public final class LauncherSettingsActivity extends Activity {
             backdropChoices[i].setOnClickListener(v -> {
                 if (value.equals(dockBackdrop)) return;
                 dockBackdrop = value;
+                applyWallpaperBlur();
+                applyScrim();
                 choices.edit().putString(Config.DOCK_BACKDROP_KEY, value).apply();
                 changed();
+                if (Config.BACKDROP_COLOR.equals(value) != monoApplied) {
+                    // The rows' colours come from the theme: redraw this screen and come back to this page.
+                    getIntent().putExtra(REOPEN_BACKDROP, true);
+                    recreate();
+                    return;
+                }
                 refresh();
             });
         }
-        addBackdropNote(backdropChoices[1], R.string.dock_backdrop_blur_note);
-        addBackdropNote(backdropChoices[2], R.string.dock_backdrop_liquid_note);
+        describeBackdrop(backdropChoices[0], R.id.backdropColorHint, R.string.dock_backdrop_color_desc,
+                R.string.dock_backdrop_color_requires, android.os.Build.VERSION_CODES.O);
+        describeBackdrop(backdropChoices[1], R.id.backdropBlurHint, R.string.dock_backdrop_blur_desc, R.string.dock_backdrop_blur_requires,
+                android.os.Build.VERSION_CODES.S);
+        describeBackdrop(backdropChoices[2], R.id.backdropLiquidHint, R.string.dock_backdrop_liquid_desc, R.string.dock_backdrop_liquid_requires,
+                android.os.Build.VERSION_CODES.TIRAMISU);
         findViewById(R.id.slideshowThird).setOnClickListener(v -> setColorScheme(Config.SCHEME_MIXED));
         int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow};
         for (int i = 0; i < partRows.length; i++) {
@@ -226,7 +248,7 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove("animations")
                     .remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(Config.DOCK_BACKDROP_KEY).remove(Config.DOCK_BLUR_KEY)
+                    .remove(Config.DOCK_OPACITY_KEY).remove(Config.DOCK_BACKDROP_KEY).remove(Config.DOCK_BLUR_KEY).remove(Config.TILE_OUTLINE_KEY)
                     .remove(OpenOnStart.KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
@@ -253,12 +275,16 @@ public final class LauncherSettingsActivity extends Activity {
         clipAtEdges(findViewById(R.id.pageWallpaper));
         clipAtEdges(findViewById(R.id.subWallpaperScroll));
         loadWallpaper();
+        applyScrim();
         // Draw the wallpaper previews now, in the background, so the picker opens with them already in the cache.
         float dp = getResources().getDisplayMetrics().density;
         WallpaperThumbs.prefetch(getApplicationContext(), (int) (64 * dp), (int) (36 * dp), 5 * dp);
         refresh();
         colorSchemeChoice.requestFocus();
-        if (getIntent().getBooleanExtra(REOPEN_SCHEME, false)) {
+        if (getIntent().getBooleanExtra(REOPEN_BACKDROP, false)) {
+            getIntent().removeExtra(REOPEN_BACKDROP);
+            openChoices(dockBackdropChoice, R.string.dock_backdrop_label);
+        } else if (getIntent().getBooleanExtra(REOPEN_SCHEME, false)) {
             getIntent().removeExtra(REOPEN_SCHEME);
             openColorSchemeChoices();
         }
@@ -274,10 +300,34 @@ public final class LauncherSettingsActivity extends Activity {
         if (bitmap == null) return;
         android.widget.ImageView view = findViewById(R.id.wallpaper);
         view.setImageBitmap(bitmap);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        wallpaperView = view;
+        applyWallpaperBlur();
+    }
+
+    private android.widget.ImageView wallpaperView;
+
+    /** Monochrome: the wash over the wallpaper is 35% white, or 65% black in the dark scheme; otherwise the theme's own scrim. */
+    private void applyScrim() {
+        View scrim = findViewById(R.id.wallpaperScrim);
+        if (scrim == null) return;
+        if (Config.BACKDROP_COLOR.equals(dockBackdrop)) {
+            scrim.setBackgroundColor(Config.dark(this, Config.PART_MENU) ? 0xA6000000 : 0x59FFFFFF);
+        } else {
+            android.util.TypedValue value = new android.util.TypedValue();
+            if (getTheme().resolveAttribute(R.attr.settingsScrim, value, true)) scrim.setBackgroundColor(value.data);
+        }
+    }
+
+    /** Blurred like the apps grid's background, except with the Monochrome backdrop, which has no blur at all. */
+    private void applyWallpaperBlur() {
+        if (wallpaperView == null) return;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                && !Config.BACKDROP_COLOR.equals(dockBackdrop)) {
             float sigma = 36f * getResources().getDisplayMetrics().density;
-            view.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(sigma, sigma,
+            wallpaperView.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(sigma, sigma,
                     android.graphics.Shader.TileMode.CLAMP));
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            wallpaperView.setRenderEffect(null);
         }
     }
 
@@ -751,6 +801,7 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
     private static final String REOPEN_SCHEME = "reopen_scheme";
+    private static final String REOPEN_BACKDROP = "reopen_backdrop";
 
     /** "Color scheme": Light / Dark, the same two-tile sub-page as Slideshow. */
     private void openColorSchemeChoices() {
@@ -1256,6 +1307,7 @@ public final class LauncherSettingsActivity extends Activity {
                 + getString(Config.colorScheme(this) == Config.SCHEME_DARK ? R.string.color_scheme_dark
                 : Config.colorScheme(this) == Config.SCHEME_MIXED ? R.string.color_scheme_mixed : R.string.color_scheme_light));
         tileRadiusChoice.setText(getString(R.string.tile_radius_label) + ": " + Config.tileRadius(this) + " px");
+        tileOutlineChoice.setText(getString(R.string.tile_outline_label) + ": " + getString(Config.tileOutline(this) ? R.string.yes : R.string.no));
         dockOpacityChoice.setText(getString(R.string.dock_opacity_label) + ": " + dockOpacity + "%");
         dockBlurChoice.setText(getString(R.string.dock_blur_label) + ": " + dockBlur);
         String backdropLabel = "";
@@ -1320,7 +1372,7 @@ public final class LauncherSettingsActivity extends Activity {
         return choices.contains("columns")
                 || choices.contains("animations")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(Config.DOCK_BACKDROP_KEY) || choices.contains(Config.DOCK_BLUR_KEY)
+                || choices.contains(Config.DOCK_BACKDROP_KEY) || choices.contains(Config.DOCK_BLUR_KEY) || choices.contains(Config.TILE_OUTLINE_KEY)
                 || choices.contains(OpenOnStart.KEY);
     }
 

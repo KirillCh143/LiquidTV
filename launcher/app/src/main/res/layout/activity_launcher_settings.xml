@@ -15,6 +15,7 @@
         android:importantForAccessibility="no" />
 
     <View
+        android:id="@+id/wallpaperScrim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="?attr/settingsScrim" />
@@ -229,6 +230,11 @@
 
             <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/tileRadiusChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/tileOutlineChoice"
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp" />
 
@@ -479,17 +485,38 @@
                 <TextView
                     android:id="@+id/backdropColor"
                     style="@style/SettingsOptionRow"
+                    android:layout_marginBottom="0dp"
                     android:text="@string/dock_backdrop_color" />
+
+                <TextView
+                    android:id="@+id/backdropColorHint"
+                    style="@style/SettingsHint"
+                    android:gravity="center"
+                    android:layout_marginBottom="14dp" />
 
                 <TextView
                     android:id="@+id/backdropBlur"
                     style="@style/SettingsOptionRow"
+                    android:layout_marginBottom="0dp"
                     android:text="@string/dock_backdrop_blur" />
+
+                <TextView
+                    android:id="@+id/backdropBlurHint"
+                    style="@style/SettingsHint"
+                    android:gravity="center"
+                    android:layout_marginBottom="14dp" />
 
                 <TextView
                     android:id="@+id/backdropLiquid"
                     style="@style/SettingsOptionRow"
+                    android:layout_marginBottom="0dp"
                     android:text="@string/dock_backdrop_liquid" />
+
+                <TextView
+                    android:id="@+id/backdropLiquidHint"
+                    style="@style/SettingsHint"
+                    android:gravity="center"
+                    android:layout_marginBottom="14dp" />
                 </LinearLayout>
             </LinearLayout>
 

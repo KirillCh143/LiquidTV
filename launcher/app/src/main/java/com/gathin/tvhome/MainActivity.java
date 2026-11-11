@@ -150,6 +150,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config.xml dock_backdrop "liquid": gates the Settings grid's own per-tile glass layers (showSettingsGrid)
      *  the same way it gates the dock's and the top bar's own liquid refraction. */
     private boolean dockBackdropLiquid;
+    /** dock_backdrop "blur" (Frosted ice): the dock, pills and Settings tiles get GlassRim's white outline. */
+    private boolean dockBackdropBlur;
+    /** dock_backdrop "color" (Monochrome): 100% dock opacity makes the light wash solid. */
+    private boolean dockBackdropColor;
+
+    /** Monochrome with the light scheme and a dock opacity of 80% or more: the wash is (nearly) solid white, so the
+     *  submenu's text and the time/avatar pill's text are black. */
+    private boolean blackTextOnWash(Config c) {
+        return dockBackdropColor && c.dockGlass && !Config.dark(Config.PART_SUB) && c.dockOpacity >= 80;
+    }
+    /** The time/avatar pill's own turn of GlassRim's gradient, in degrees. */
+    private static final float CLOCK_PILL_RIM_DEGREES = -130f;
     private GlassView glass;
     private View ambient;
     private TextView heroName;
@@ -428,6 +440,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         getWindow().setBackgroundDrawable(null);
         wallpaperPlayer = new WallpaperPlayer(this, root, cfg);
         dockBackdropLiquid = Config.BACKDROP_LIQUID.equals(cfg.dockBackdrop);
+        dockBackdropColor = Config.BACKDROP_COLOR.equals(cfg.dockBackdrop);
+        dockBackdropBlur = Config.BACKDROP_BLUR.equals(cfg.dockBackdrop) && wallpaperPlayer.hasDockBlur();
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
@@ -597,8 +611,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             float dx = gridLoc[0] - rootLoc[0], dy = gridLoc[1] - rootLoc[1];
             wallpaperPlayer.setDockMask(left + dx, top + dy, right + dx, bottom + dy, radius);
         } : null;
-        if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding,
-                singleRow, cfg.dockBandAll, dockMask));
+        if (dockRow) {
+            DockDecoration dockDecoration = new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding,
+                    singleRow, cfg.dockBandAll, dockMask);
+            dockDecoration.setRim(dockBackdropBlur);
+            dockDecoration.setSolidAtFull(dockBackdropColor);
+            dockDecoration.setSolidRim(dockBackdropColor);
+            grid.addItemDecoration(dockDecoration);
+        }
         // Local patch (see WallpaperPlayer.setButtonsMask): the same blur/liquid layer as the dock, behind the
         // top-bar pills as one row — pill_bg's own 21dp corners (a full circle for the 42dp Menu button) (its rounded rect radius). showSettingsGrid
         // borrows this same layer for its own glass look while it's open, and refreshButtonsMask is how it
@@ -819,12 +839,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // reading as two nested pill outlines. Swap in a borderless variant; focus/reorder feedback unchanged.
         // dock_backdrop "liquid" with dock_glass on gets the dock's own white wash too (pill_bg_liquid), so the
         // pills read as the same glass as the dock, not just its blur/liquid shader without the tint on top.
-        if (wallpaperPlayer.hasDockBlur()) {
+        {
             // The dock's own wash at its own "Dock panel opacity" (Launcher settings), over the pills' glass layer.
+            // Without a glass layer (Monochrome) only the time/avatar pill takes it: the dock's flat band colour.
             ViewGroup topButtonsRow = findViewById(R.id.topButtons);
             for (int i = 0; i < topButtonsRow.getChildCount(); i++) {
-                topButtonsRow.getChildAt(i).setBackground(washedBackground(21 * density, Config.dockLightGlass(cfg, Config.dark(Config.PART_SUB)), cfg.dockOpacity,
-                        true));
+                View pill = topButtonsRow.getChildAt(i);
+                if (!wallpaperPlayer.hasDockBlur() && pill.getId() != R.id.btnSettings) continue;
+                if (pill.getId() == R.id.btnSettings && pill instanceof TextView && blackTextOnWash(cfg)) {
+                    ((TextView) pill).setTextColor(Color.BLACK);
+                    if (((TextView) pill).getCompoundDrawableTintList() != null) {
+                        ((TextView) pill).setCompoundDrawableTintList(ColorStateList.valueOf(Color.BLACK));
+                    }
+                }
+                pill.setBackground(washedBackground(21 * density, Config.dockLightGlass(cfg, Config.dark(Config.PART_SUB)), cfg.dockOpacity,
+                        true, pill.getId() == R.id.btnSettings ? CLOCK_PILL_RIM_DEGREES : 0f));
             }
         }
 
@@ -3323,16 +3352,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         TextView text = anchor instanceof TextView ? (TextView) anchor : null;
         android.content.res.ColorStateList colors = text != null ? text.getTextColors() : null;
         android.content.res.ColorStateList tint = text != null ? text.getCompoundDrawableTintList() : null;
-        if (wallpaperPlayer.hasDockBlur()) {
+        if (wallpaperPlayer.hasDockBlur() || anchor.getId() == R.id.btnSettings) {
             // The pill keeps the dock's wash while the grid is open (state-free, so no focus white behind it).
             Config wash = Config.load(this);
-            anchor.setBackground(restWash(21 * density, Config.dockLightGlass(wash, Config.dark(Config.PART_SUB)), wash.dockOpacity));
+            anchor.setBackground(rimmed(restWash(21 * density, Config.dockLightGlass(wash, Config.dark(Config.PART_SUB)), wash.dockOpacity), 21 * density,
+                    anchor.getId() == R.id.btnSettings ? CLOCK_PILL_RIM_DEGREES : 0f));
         } else {
             anchor.setBackgroundResource(R.drawable.pill_bg_rest);
         }
         if (text != null) {
-            text.setTextColor(Color.WHITE);
-            text.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            int calmText = anchor.getId() == R.id.btnSettings && blackTextOnWash(Config.load(this)) ? Color.BLACK : Color.WHITE;
+            text.setTextColor(calmText);
+            text.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(calmText));
         }
         popup.setOnDismissListener(() -> {
             if (openPopup == popup) openPopup = null;
@@ -3354,7 +3385,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  below API 31, or before the wallpaper's first decode finishes. */
     private void setUpTileGlass(View tile, View slot) {
         Bitmap bitmap = wallpaperPlayer.currentBitmap();
-        if (bitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        if (bitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !wallpaperPlayer.hasDockBlur()) return;   // Monochrome: no glass layer
         ImageView glassView = tile.findViewById(R.id.glass);
         float width = slot.getWidth(), height = slot.getHeight();
         float radius = 42f;   // 42 px corners (was 16dp), the same as tile_bg_liquid
@@ -3423,7 +3454,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * white gradient (32% fading to 18%), scaled by the opacity; otherwise the dock's dark band colour at the opacity.
      * Focused is the plain white every pill gives, and (pills only) the reorder mode's blue.
      */
-    private Drawable washedBackground(float radiusPx, boolean lightGlass, int opacityPercent, boolean reorderState) {
+    private Drawable washedBackground(float radiusPx, boolean lightGlass, int opacityPercent, boolean reorderState, float rimDegrees) {
         android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
         android.graphics.drawable.GradientDrawable focused = new android.graphics.drawable.GradientDrawable();
         focused.setColor(0xF5FFFFFF);
@@ -3436,17 +3467,27 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             reorder.setCornerRadius(radiusPx);
             states.addState(new int[]{android.R.attr.state_activated}, reorder);
         }
-        states.addState(new int[]{}, restWash(radiusPx, lightGlass, opacityPercent));
+        states.addState(new int[]{}, rimmed(restWash(radiusPx, lightGlass, opacityPercent), radiusPx, rimDegrees));
         return states;
     }
 
+    /** With the Frosted ice backdrop, d with GlassRim's outline over it. */
+    private Drawable rimmed(Drawable d, float radiusPx) {
+        return rimmed(d, radiusPx, 0f);
+    }
+
+    private Drawable rimmed(Drawable d, float radiusPx, float extraDegrees) {
+        if (dockBackdropColor) return GlassRim.solidOver(d, radiusPx, density);   // Monochrome: plain white 15%, 1dp
+        return dockBackdropBlur ? GlassRim.over(d, radiusPx, density, extraDegrees) : d;
+    }
+
     /** The dock band's wash alone (no states): its white gradient or dark colour at the dock opacity. */
-    private static android.graphics.drawable.GradientDrawable restWash(float radiusPx, boolean lightGlass, int opacityPercent) {
+    private android.graphics.drawable.GradientDrawable restWash(float radiusPx, boolean lightGlass, int opacityPercent) {
         android.graphics.drawable.GradientDrawable rest = new android.graphics.drawable.GradientDrawable();
         float k = Math.max(0, Math.min(100, opacityPercent)) / 100f;
         if (lightGlass) {
             rest.setOrientation(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM);
-            rest.setColors(new int[]{(Math.round(0x52 * k) << 24) | 0xFFFFFF, (Math.round(0x2E * k) << 24) | 0xFFFFFF});
+            rest.setColors(new int[]{(Config.lightWashAlpha(0x52, opacityPercent, dockBackdropColor) << 24) | 0xFFFFFF, (Config.lightWashAlpha(0x2E, opacityPercent, dockBackdropColor) << 24) | 0xFFFFFF});
         } else {
             rest.setColor((Math.round(255 * k) << 24) | (Config.dark(Config.PART_SUB) ? 0x000000 : 0x141416));
         }
@@ -3459,7 +3500,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private Drawable tileWash(float radiusPx, boolean lightGlass, int opacityPercent) {
         android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
         states.addState(new int[]{android.R.attr.state_focused}, new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
-        states.addState(new int[]{}, restWash(radiusPx, lightGlass, opacityPercent));
+        states.addState(new int[]{}, (dockBackdropColor ? GlassRim.solidOver(restWash(radiusPx, lightGlass, opacityPercent), radiusPx, density)
+                : rimmed(restWash(radiusPx, lightGlass, opacityPercent), radiusPx, 230f)));
         return states;
     }
 
@@ -3475,10 +3517,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View tile = getLayoutInflater().inflate(layoutRes, slot, false);
         ((ImageView) tile.findViewById(R.id.icon)).setImageResource(icon);
         ((TextView) tile.findViewById(R.id.title)).setText(title);
-        if (wallpaperPlayer.hasDockBlur()) {
+        {
             Config tileConfig = Config.load(this);
             // A layer between the glass and the content, so the icon and label stay on top of the wash.
             tile.findViewById(R.id.wash).setBackground(tileWash(42f, Config.dockLightGlass(tileConfig, Config.dark(Config.PART_SUB)), tileConfig.dockOpacity));
+            if (blackTextOnWash(tileConfig)) {
+                ((TextView) tile.findViewById(R.id.title)).setTextColor(Color.BLACK);
+                TextView sub = tile.findViewById(R.id.subtitle);
+                if (sub != null) sub.setTextColor(Color.BLACK);
+                ((ImageView) tile.findViewById(R.id.icon)).setImageTintList(ColorStateList.valueOf(Color.BLACK));
+            }
         }
         tile.setOnClickListener(v -> {
             popup.dismiss();

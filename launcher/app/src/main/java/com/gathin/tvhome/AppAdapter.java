@@ -203,6 +203,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final boolean showHiddenLibraryApps;
     private final List<Entry> items = new ArrayList<>();
 
+    /** Monochrome: the focused tile's outline is a plain 1dp white stroke at 15%, no gradient, glow or shader. */
+    private final boolean plainRim;
+    /** Frosted ice: the focused tile's outline is the gradient stroke alone, without the inner-glow shader. */
+    private final boolean strokeOnlyRim;
+
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg, boolean lockToDock, boolean tileShadow,
                boolean showHiddenLibraryApps) {
         this.ctx = ctx;
@@ -216,6 +221,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.libraryPreload = new HashSet<>(cfg.libraryApps);
         this.animations = cfg.animations;
+        this.plainRim = Config.BACKDROP_COLOR.equals(cfg.dockBackdrop);
+        this.strokeOnlyRim = Config.BACKDROP_BLUR.equals(cfg.dockBackdrop);
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
         // Local patch: the library tile at the end of the grid is off; the top-bar library_button stays as the
         // only way in, since cfg.appLibrary itself (tile_menu's Remove from Home, the top-bar button) stays on.
@@ -447,7 +454,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             iconLp.bottomMargin = 0;
             icon.setLayoutParams(iconLp);
         }
-        return new Holder(v, listener, animations, reducedMotion, restNameAlpha, focusOvershoot);
+        return new Holder(v, listener, animations, reducedMotion, restNameAlpha, focusOvershoot, plainRim, strokeOnlyRim);
     }
 
     @Override
@@ -907,6 +914,34 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             + "    return half4(v, v, v, v);\n"   // premultiplied white
             + "}\n";
 
+    /** Monochrome's outline: one 1dp stroke in GlassRim.SOLID (white, 15%), nothing else. */
+    private static final class PlainRimDrawable extends android.graphics.drawable.Drawable {
+        private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.RectF rect = new android.graphics.RectF();
+        private final float density;
+
+        PlainRimDrawable(float density) {
+            this.density = density;
+            paint.setStyle(android.graphics.Paint.Style.STROKE);
+            paint.setStrokeWidth(density);
+            paint.setColor(GlassRim.SOLID);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.isEmpty()) return;
+            float inset = density / 2f;
+            rect.set(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset);
+            float radius = Math.max(0f, cornerRadius(b.width(), density) - inset);
+            canvas.drawRoundRect(rect, radius, radius, paint);
+        }
+
+        @Override public void setAlpha(int alpha) {}
+        @Override public void setColorFilter(android.graphics.ColorFilter filter) {}
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+    }
+
     private static final class RimDrawable extends android.graphics.drawable.Drawable {
         private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
         private final android.graphics.Paint glow = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
@@ -919,8 +954,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private final float density;
         private android.graphics.RuntimeShader glowShader;
 
-        RimDrawable(float density) {
+        private final boolean strokeOnly;
+
+        RimDrawable(float density, boolean strokeOnly) {
             this.density = density;
+            this.strokeOnly = strokeOnly;
             stroke = 1f * density;
             paint.setStyle(android.graphics.Paint.Style.STROKE);
             paint.setStrokeWidth(stroke);
@@ -943,7 +981,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             android.graphics.Rect b = getBounds();
             if (b.isEmpty()) return;
             float radius = cornerRadius(b.width(), 1f);
-            if (useShader) {
+            if (strokeOnly) {
+                // the gradient stroke below is all there is: no glow, no shader
+            } else if (useShader) {
                 drawShaderGlow(canvas, b, radius);
             } else if (hasGlow) {
                 edge.set(b.left, b.top, b.right, b.bottom);
@@ -1001,7 +1041,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final boolean overshoot;
 
         Holder(View v, TileListener listener, boolean animations,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, boolean plainRim, boolean strokeOnlyRim) {
             super(v);
             card = v.findViewById(R.id.card);
             cardBackground = card.getBackground();
@@ -1025,9 +1065,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             card.setClipToOutline(true);
             // tvOS-style rim on the focused tile: a thin stroke whose light fades down the tile.
             android.graphics.drawable.StateListDrawable rim = new android.graphics.drawable.StateListDrawable();
-            rim.addState(new int[]{android.R.attr.state_focused}, new RimDrawable(density));
+            rim.addState(new int[]{android.R.attr.state_focused}, plainRim ? new PlainRimDrawable(density) : new RimDrawable(density, strokeOnlyRim));
             rim.addState(new int[]{}, new android.graphics.drawable.ColorDrawable(0));
-            card.setForeground(rim);
+            if (Config.tileOutline(v.getContext())) card.setForeground(rim);   // Launcher settings, "App outline"
             // Local patch: AppLibraryActivity's drop shadow (tileShadow, see onBindViewHolder) read as too
             // strong/hard-edged against its light wallpaper+wash background at the system's default shadow
             // colour — a lighter, more diffuse shadow colour instead, elevation unchanged. No effect on Home

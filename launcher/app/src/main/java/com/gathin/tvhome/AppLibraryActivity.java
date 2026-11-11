@@ -79,6 +79,8 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
     static final String EXTRA_EXIT_COLUMN = "com.gathin.tvhome.extra.LIBRARY_EXIT_COLUMN";
     private static final long TRANSITION_MS = 380;
     private static final float SCRIM_ALPHA = 0.1f;
+    /** Monochrome: the wash over the wallpaper (white 25%, or black 65% in the dark scheme). */
+    private float scrimAlpha = SCRIM_ALPHA;
     /** wallpaperBlur's own blur radius (dp) — dockGlass matches it so the dock reads as the same backdrop, just
      *  as glass, instead of a sharper "hole" standing out against the rest of the heavily blurred screen. */
     private static final float BACKDROP_BLUR_SIGMA_DP = 36f;
@@ -141,6 +143,7 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         wallpaperSharp = findViewById(R.id.wallpaperSharp);
         wallpaperBlur = findViewById(R.id.wallpaperBlur);
         scrim = findViewById(R.id.scrim);
+        if (Config.BACKDROP_COLOR.equals(cfg.dockBackdrop)) scrimAlpha = Config.dark(Config.PART_GRID) ? 0.65f : 0.35f;   // black wash 65% in the dark scheme, white 35% in the light one
         if (Config.dark(Config.PART_GRID)) scrim.setBackgroundColor(0xFF000000);   // dark colour scheme: a black wash, not white
         dockGlass = findViewById(R.id.dockGlass);
         loadWallpaper();
@@ -175,8 +178,14 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
             dockGlass.invalidateOutline();
             dockGlass.invalidate();
         } : null;
-        if (cfg.dockRow) grid.addItemDecoration(new DockDecoration(columns, density, false, cfg.alwaysShowNames,
-                cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding, false, false, dockMask));
+        if (cfg.dockRow) {
+            DockDecoration dockDecoration = new DockDecoration(columns, density, false, cfg.alwaysShowNames,
+                    cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding, false, false, dockMask);
+            dockDecoration.setRim(dockGlassReady && Config.BACKDROP_BLUR.equals(cfg.dockBackdrop));
+            dockDecoration.setSolidAtFull(Config.BACKDROP_COLOR.equals(cfg.dockBackdrop));
+            dockDecoration.setSolidRim(Config.BACKDROP_COLOR.equals(cfg.dockBackdrop));
+            grid.addItemDecoration(dockDecoration);
+        }
         adapter = new AppAdapter(this, this, columns, cfg, false, true, showHidden);
         // Local patch: this screen's own adapter instance is fresh every time it opens, with no memory of a
         // previous session's drag-reorder (endReorderSession) — without reading the saved order back here too,
@@ -266,7 +275,7 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         dockGlass.animate().alpha(1f).translationY(0f).setDuration(TRANSITION_MS)
                 .setInterpolator(new DecelerateInterpolator(1.4f)).start();
         wallpaperBlur.animate().alpha(1f).setDuration(TRANSITION_MS).withEndAction(() -> wallpaperSharp.setVisibility(View.GONE)).start();
-        scrim.animate().alpha(SCRIM_ALPHA).setDuration(TRANSITION_MS).start();
+        scrim.animate().alpha(scrimAlpha).setDuration(TRANSITION_MS).start();
         for (int i = 0; i < grid.getChildCount(); i++) {
             View child = grid.getChildAt(i);
             RecyclerView.ViewHolder vh = grid.getChildViewHolder(child);
@@ -463,7 +472,8 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         Bitmap bitmap = decodeForScreen(this, new File(path));
         if (bitmap == null) return;
         wallpaperSharp.setImageBitmap(bitmap);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        boolean flat = Config.BACKDROP_COLOR.equals(Config.load(this).dockBackdrop);   // Monochrome: no blur anywhere
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !flat) {
             wallpaperBlur.setImageBitmap(bitmap);
             float sigma = BACKDROP_BLUR_SIGMA_DP * density;
             wallpaperBlur.setRenderEffect(RenderEffect.createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP));

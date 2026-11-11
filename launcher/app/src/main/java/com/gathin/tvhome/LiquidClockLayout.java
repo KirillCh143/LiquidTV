@@ -46,6 +46,11 @@ final class LiquidClockLayout extends FrameLayout {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ImageView wallpaper;
     private final GlassLayer layer;
+    /** False with the "Frosted ice" backdrop: the digits get the blur only, not the liquid-glass refraction. */
+    private boolean lens = true;
+    /** Monochrome: no blurred picture under the digits, just the dock's band colour. */
+    private boolean flat;
+    private String backdrop = "";
     private final ImageView glass;
     /** A soft dark copy of the digits under the glass, a little lower: the digits' light shadow. */
     private final ImageView shadow;
@@ -93,14 +98,24 @@ final class LiquidClockLayout extends FrameLayout {
         // "Dock panel opacity" (Launcher settings) darkens the digits the way it darkens the dock's band.
         int opacity = 0;
         boolean light = false;
+        boolean lens = true, flat = false;
+        String backdropName = "";
         try {
             Config config = Config.load(context);
             opacity = config.dockOpacity;
             light = Config.dockLightGlass(config);   // dock_glass on the "liquid" backdrop: the dock's white band
+            lens = Config.BACKDROP_LIQUID.equals(config.dockBackdrop);   // refraction only with liquid glass
+            backdropName = config.dockBackdrop;
+            flat = Config.BACKDROP_COLOR.equals(config.dockBackdrop);   // Monochrome: the dock's flat colour, no glass picture
         } catch (RuntimeException ignored) {
             // no tint
         }
         layer.setTint(light, opacity);
+        this.lens = lens;
+        if (flat) glass.setVisibility(GONE);
+        this.flat = flat;
+        layer.setFlat(flat);
+        this.backdrop = backdropName;
         blurBase = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? blurRecipe(context) : null;
     }
 
@@ -268,17 +283,43 @@ final class LiquidClockLayout extends FrameLayout {
         mask = next;
         layer.setGradient(top, baseline);
         layer.setMask(next);
+        layer.setRim(Config.BACKDROP_BLUR.equals(backdrop) || Config.BACKDROP_COLOR.equals(backdrop) ? rimBitmap(w, h, time, ampm, text, small, gap, left, top, baseline) : null);
         shadow.setImageBitmap(next);
         applyEffect(next);
         layer.invalidate();
     }
 
+    /** The digits' outline (solid white at 15%) as its own picture, drawn over the glass. */
+    private Bitmap rimBitmap(int w, int h, String time, String ampm, Paint text, Paint small, float gap, float left, float top, float baseline) {
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(out);
+        Paint stroke = GlassRim.strokePaint(density);
+        boolean mono = Config.BACKDROP_COLOR.equals(backdrop);   // Monochrome: exactly 1dp, the dock's width
+        stroke.setStrokeWidth(mono ? density : Math.max(1f * density, text.getTextSize() / 130f));
+        stroke.setStrokeJoin(Paint.Join.ROUND);
+        stroke.setTypeface(text.getTypeface());
+        stroke.setTextSize(text.getTextSize());
+        stroke.setFakeBoldText(text.isFakeBoldText());
+        float timeWidth = text.measureText(time);
+        stroke.setColor(GlassRim.SOLID);   // solid white at 15%, no gradient
+        canvas.drawText(time, left, baseline, stroke);
+        if (!ampm.isEmpty()) {
+            Paint label = new Paint(stroke);
+            label.setTextSize(small.getTextSize());
+            label.setStrokeWidth(mono ? density : Math.max(1f * density, small.getTextSize() / 40f));
+            android.graphics.Rect smallBounds = new android.graphics.Rect();
+            small.getTextBounds("M", 0, 1, smallBounds);
+            canvas.drawText(ampm, left + timeWidth + gap, top - smallBounds.top, label);
+        }
+        return out;
+    }
+
     /** The dock's lens on the digits: the shader needs the mask for the glyph outline, so it is rebuilt with it. */
     private void applyEffect(Bitmap maskBitmap) {
         glass.setRenderEffect(null);
-        if (blurBase == null) return;
+        if (blurBase == null || flat) return;
         RenderEffect effect = blurBase;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (lens && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 RuntimeShader shader = new RuntimeShader(TextGlassShader.SOURCE);
                 shader.setInputShader("mask", new BitmapShader(maskBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
@@ -304,10 +345,22 @@ final class LiquidClockLayout extends FrameLayout {
         private boolean light;
         private int opacityPercent;
         private float gradientTop, gradientBottom;
+        /** Monochrome: 100% opacity is a solid light fill. */
+        private boolean flat;
+
+        void setFlat(boolean flat) {
+            this.flat = flat;
+        }
 
         GlassLayer(Context context) {
             super(context);
             keep.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+        }
+
+        private Bitmap rim;
+
+        void setRim(Bitmap rim) {
+            this.rim = rim;
         }
 
         void setMask(Bitmap mask) {
@@ -335,8 +388,9 @@ final class LiquidClockLayout extends FrameLayout {
                 if (light) {
                     Paint white = new Paint();
                     white.setShader(new android.graphics.LinearGradient(0, gradientTop, 0, gradientBottom,
-                            0x52FFFFFF, 0x2EFFFFFF, Shader.TileMode.CLAMP));
-                    white.setAlpha(alpha);   // scales the gradient, as the dock band's own alpha does
+                            (Config.lightWashAlpha(0x52, opacityPercent, flat) << 24) | 0xFFFFFF,
+                            (Config.lightWashAlpha(0x2E, opacityPercent, flat) << 24) | 0xFFFFFF, Shader.TileMode.CLAMP));
+                    if (!flat) white.setAlpha(alpha);   // scales the gradient, as the dock band's own alpha does
                     canvas.drawRect(0, 0, getWidth(), getHeight(), white);
                 } else {
                     canvas.drawColor((alpha << 24) | (Config.dark(Config.PART_DOCK) ? 0x000000 : 0x141416));
@@ -344,6 +398,7 @@ final class LiquidClockLayout extends FrameLayout {
             }
             canvas.drawBitmap(mask, 0, 0, keep);
             canvas.restoreToCount(saved);
+            if (rim != null) canvas.drawBitmap(rim, 0, 0, null);
         }
     }
 }

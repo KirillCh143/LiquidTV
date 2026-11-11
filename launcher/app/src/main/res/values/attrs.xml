@@ -2,6 +2,7 @@
 <resources>
     <!-- Launcher settings' colour scheme (Personalization > Main theme): the screen's scrim and the inactive rows' wash. -->
     <attr name="settingsScrim" format="color" />
+    <attr name="settingsNavRest" format="color" />
     <attr name="settingsRowRest" format="color" />
     <attr name="settingsNavSelected" format="color" />
 </resources>

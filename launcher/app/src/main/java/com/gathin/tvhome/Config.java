@@ -46,6 +46,12 @@ final class Config {
     /** Local patch: the Gaussian blur's sigma behind the dock, the Menu button and the Settings grid's tiles, in dp
      *  (0 = no blur), chosen in Launcher settings. */
     static final String DOCK_BLUR_KEY = "dock_blur";
+    /** Launcher settings, "App outline": whether the focused app tile shows its white outline (default yes). */
+    static final String TILE_OUTLINE_KEY = "tile_outline";
+
+    static boolean tileOutline(Context context) {
+        return context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getBoolean(TILE_OUTLINE_KEY, true);
+    }
     /** App tile corner radius in px (local patch): 0..MAX_TILE_RADIUS, default 36. */
     static final String TILE_RADIUS_KEY = "tile_radius";
     static final int MAX_TILE_RADIUS = 50;
@@ -418,14 +424,23 @@ final class Config {
     }
 
     /** Local patch: whether a dock band should draw as light frosted glass (dock_glass) — gated to dock_backdrop
-     *  "liquid" (MainActivity's own dock, and AppLibraryActivity's, which otherwise matches Home's look). */
+     *  "liquid" or "blur" (Frosted ice), so the light scheme gives the white wash on both and the dark one the black band; (MainActivity's own dock, and AppLibraryActivity's, which otherwise matches Home's look). */
     static boolean dockLightGlass(Config cfg) {
         return dockLightGlass(cfg, dark(PART_DOCK));
     }
 
     /** The same for a part with its own scheme (the pills and the submenu use PART_SUB): never light when dark. */
     static boolean dockLightGlass(Config cfg, boolean dark) {
-        return cfg.dockGlass && BACKDROP_LIQUID.equals(cfg.dockBackdrop) && !dark;
+        return cfg.dockGlass && !dark;   // every backdrop, Monochrome too: the light scheme is the white wash, the dark one the black band
+    }
+
+    /** The light wash's alpha (0 to 255) for a gradient end of baseAlpha at the dock opacity (percent): the old
+     *  baseAlpha scaled by the opacity, but climbing to fully opaque at 100% when solidAtFull (the Monochrome backdrop only), so that setting reads as solid. */
+    static int lightWashAlpha(int baseAlpha, int opacityPercent, boolean solidAtFull) {
+        float k = Math.max(0, Math.min(100, opacityPercent)) / 100f;
+        if (!solidAtFull) return Math.round(baseAlpha * k);
+        float k4 = k * k * k * k;
+        return Math.round(255f * (baseAlpha / 255f * k + (1f - baseAlpha / 255f) * k4));
     }
 
     /** A known glass_style, or glass (the default) for anything else. */
@@ -771,11 +786,11 @@ final class Config {
             SharedPreferences.Editor editor = choices.edit();
             if (!"absent".equals(token)) editor.remove("columns").remove("animations")
                     .remove(WALLPAPER_CHOICE_KEY)
-                    .remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY);
+                    .remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY).remove(TILE_OUTLINE_KEY);
             editor.putString(THEME_SIGNATURE_KEY, signature).commit();
         } else if (!seen.equals(signature)) {
             choices.edit().remove("columns").remove("animations")
-                    .remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY)
+                    .remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY).remove(TILE_OUTLINE_KEY)
                     .putString(THEME_SIGNATURE_KEY, signature).commit();
         }
     }

@@ -34,6 +34,32 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     /** Local patch: reports the band's rect each draw, so WallpaperPlayer's blur layer (see there) can be
      *  clipped to match it. Null keeps the dock exactly as before (no blur support, or it's off). */
     private final MaskListener maskListener;
+    /** The "Frosted ice" backdrop's white outline (GlassRim), off by default. */
+    private Paint rim;
+    private final int opacity;
+    /** Monochrome: 100% opacity is a solid light band. */
+    private boolean solidAtFull;
+
+    void setSolidAtFull(boolean on) {
+        solidAtFull = on;
+        shaderTop = Float.NaN;
+    }
+    private final RectF rimShaderRect = new RectF();
+
+    private boolean rimSolid;
+
+    /** The Monochrome backdrop's outline: GlassRim.SOLID, no gradient. */
+    void setSolidRim(boolean on) {
+        if (!on) return;
+        rim = GlassRim.strokePaint(density);
+        rim.setColor(GlassRim.SOLID);
+        rimSolid = true;
+    }
+
+    void setRim(boolean on) {
+        rim = on ? GlassRim.strokePaint(density) : null;
+        rimShaderRect.setEmpty();
+    }
 
     /** Local patch (see WallpaperPlayer.setDockMask): the dock band's rect and corner radius, in the
      *  RecyclerView's own coordinates, reported after every draw. */
@@ -59,6 +85,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
         this.density = density;
         this.namesRoom = names ? 22 * density : 0;
         this.lightGlass = lightGlass;
+        this.opacity = opacity;
         this.evenPadding = evenPadding;
         this.maskListener = maskListener;
         band.setColor(translucent ? 0x8C121014 : (Math.round(opacity * 2.55f) << 24) | (Config.dark(Config.PART_DOCK) ? 0x000000 : 0x141416));
@@ -150,12 +177,23 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
         if (lightGlass && (rect.top != shaderTop || rect.bottom != shaderBottom)) {
             // Past the pills' own glass (pill_bg: white, 18% fading to 8%) — pushed brighter still, tuned
             // on a real TV.
-            band.setShader(new LinearGradient(0, rect.top, 0, rect.bottom, 0x52FFFFFF, 0x2EFFFFFF,
+            band.setShader(new LinearGradient(0, rect.top, 0, rect.bottom,
+                    (Config.lightWashAlpha(0x52, opacity, solidAtFull) << 24) | 0xFFFFFF, (Config.lightWashAlpha(0x2E, opacity, solidAtFull) << 24) | 0xFFFFFF,
                     Shader.TileMode.CLAMP));
+            if (solidAtFull) band.setAlpha(255);   // the gradient carries the opacity itself
             shaderTop = rect.top;
             shaderBottom = rect.bottom;
         }
         c.drawRoundRect(rect, radius, radius, band);
+        if (rim != null) {
+            float inset = rim.getStrokeWidth() / 2f;
+            if (!rimSolid && !rimShaderRect.equals(rect)) {
+                rim.setShader(GlassRim.shader(rect, 220f));
+                rimShaderRect.set(rect);
+            }
+            c.drawRoundRect(rect.left + inset, rect.top + inset, rect.right - inset, rect.bottom - inset,
+                    radius - inset, radius - inset, rim);
+        }
         if (maskListener != null) maskListener.onDockRect(rect.left, rect.top, rect.right, rect.bottom, radius);
     }
 }
