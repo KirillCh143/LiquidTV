@@ -75,7 +75,7 @@ final class LiquidClockLayout extends FrameLayout {
         shadow.setColorFilter(0x55000000, android.graphics.PorterDuff.Mode.SRC_IN);   // the digits' shape in black at 33%
         shadow.setTranslationY(5f * density);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            shadow.setRenderEffect(RenderEffect.createBlurEffect(18f * density, 18f * density, Shader.TileMode.CLAMP));
+            shadow.setRenderEffect(RenderEffect.createBlurEffect(20f * density, 20f * density, Shader.TileMode.CLAMP));
         }
         addView(shadow, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         glass = new ImageView(context);
