@@ -435,6 +435,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (!ambientGlow) ambient.setVisibility(View.GONE);
         heroName = findViewById(R.id.heroName);
         hero = findViewById(R.id.hero);
+        // Local patch: a light shadow under the app's name, the same as under the date on the clock screensaver.
+        heroName.setShadowLayer(10f * density, 0, 2f * density, 0x55000000);
+        ((android.view.ViewGroup) hero).setClipChildren(false);   // the shadow reaches past the text's own box
         // The hero is now a group (name, and the cinematic lines): without this every fade of the default
         // shelf would render it through an offscreen buffer first, as the glow above notes.
         hero.forceHasOverlappingRendering(false);
