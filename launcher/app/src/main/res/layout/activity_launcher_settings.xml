@@ -348,8 +348,8 @@
                         android:layout_marginStart="30dp"
                         android:layout_marginEnd="30dp"
                         android:layout_marginTop="26dp"
-                        android:progressTint="#FFFFFFFF"
-                        android:progressBackgroundTint="#66FFFFFF" />
+                        android:indeterminate="false"
+                        android:progressDrawable="@drawable/progress_rounded" />
 
                     <TextView
                         android:id="@+id/dlStatus"

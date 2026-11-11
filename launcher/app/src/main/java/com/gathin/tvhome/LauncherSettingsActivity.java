@@ -219,6 +219,12 @@ public final class LauncherSettingsActivity extends Activity {
         showPage(0);
     }
 
+    /** The right pane's sub-page, with its fixed Back row (the wallpaper picker hides it for a Back row that scrolls). */
+    private void showSubPage() {
+        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        findViewById(R.id.subBack).setVisibility(View.VISIBLE);
+    }
+
     private void clipAtEdges(View scroller) {
         scroller.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int side = (int) (60 * getResources().getDisplayMetrics().density);
@@ -299,7 +305,7 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
         findViewById(R.id.pagePersonal).setVisibility(View.GONE);
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         ((TextView) findViewById(R.id.pageTitle)).setText(labelRes);
         findViewById(R.id.subSection).setVisibility(View.GONE);
         ((TextView) findViewById(R.id.subTitle)).setText(labelRes);
@@ -323,7 +329,7 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = row;
         subOpen = true;
         findViewById(R.id.pagePersonal).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.VISIBLE);
@@ -359,7 +365,7 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = screensaverChoice;
         subOpen = true;
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.GONE);
@@ -392,7 +398,7 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = slideshowChoice;
         subOpen = true;
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.GONE);
@@ -423,7 +429,7 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = row;
         subOpen = true;
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSection).setVisibility(View.GONE);
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.GONE);
@@ -433,7 +439,8 @@ public final class LauncherSettingsActivity extends Activity {
         ((TextView) findViewById(R.id.pageTitle)).setText(R.string.wallpapers_github);
         TextView status = findViewById(R.id.dlStatus);
         android.widget.ProgressBar bar = findViewById(R.id.dlBar);
-        bar.setIndeterminate(true);
+        bar.setIndeterminate(false);   // the stock indeterminate bar cannot have rounded ends; the text says it is connecting
+        bar.setProgress(0);
         status.setText(R.string.dl_connecting);
         findViewById(R.id.subBack).setNextFocusDownId(R.id.subBack);
         findViewById(R.id.subBack).requestFocus();
@@ -542,7 +549,7 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = multi ? slideshowCollectionChoice : wallpaperChoice;
         subOpen = true;
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSection).setVisibility(View.GONE);
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
@@ -554,6 +561,16 @@ public final class LauncherSettingsActivity extends Activity {
         list.removeAllViews();
         wallpaperRows.clear();
         float dp = getResources().getDisplayMetrics().density;
+        // Back is the first row of the list, so it scrolls away with the rest instead of staying put.
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        TextView back = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsBackRow), null, 0);
+        back.setText(R.string.settings_back);
+        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (40 * dp));
+        backParams.topMargin = (int) (16 * dp);
+        backParams.bottomMargin = (int) (4 * dp);
+        back.setLayoutParams(backParams);
+        back.setOnClickListener(v -> closeSub());
+        list.addView(back);
 
         addWallpaperSection(list, getString(R.string.wallpapers_standard), dp);
         addWallpaperRow(list, getString(R.string.wallpaper_default_name), DefaultWallpaper.CHOICE, null, dp);
@@ -584,8 +601,6 @@ public final class LauncherSettingsActivity extends Activity {
         markWallpaper();
 
         TextView first = wallpaperRows.get(0);
-        findViewById(R.id.subBack).setNextFocusDownId(first.getId());
-        first.setNextFocusUpId(R.id.subBack);
         TextView last = wallpaperRows.get(wallpaperRows.size() - 1);
         last.setNextFocusDownId(last.getId());
         TextView chosen = first;
@@ -599,7 +614,7 @@ public final class LauncherSettingsActivity extends Activity {
         section.setText(title);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = (int) (list.getChildCount() == 0 ? 19 * dp : 14 * dp);
+        lp.topMargin = (int) (list.getChildCount() <= 1 ? 19 * dp : 14 * dp);
         lp.bottomMargin = (int) (2 * dp);
         section.setLayoutParams(lp);
         list.addView(section);
