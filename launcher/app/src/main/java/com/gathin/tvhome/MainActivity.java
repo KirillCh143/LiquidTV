@@ -725,7 +725,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // button in the bar (the separate Android-settings gear button was removed).
             // The time (the button is a TextClock: the system's 24-hour / AM-PM format) left of the user icon.
             btnSettings.setContentDescription(getString(R.string.menu));
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_user_circle, 0);
+            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, userIcon(), null);
             ((TextView) btnSettings).setCompoundDrawablePadding(Math.round(8 * density));
             btnSettings.setPaddingRelative(Math.round(8 * density) + 4, 0, 0, 0);   // +4 px left of the time; the 30dp icon fills the button height and the end, so its ring is the same distance from the top, bottom and end edges
             fitMenuButtonWidth();
@@ -762,7 +762,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             btnInputs.setVisibility(View.GONE);
             btnWifi.setVisibility(View.GONE);
             btnSettings.setContentDescription(getString(R.string.menu));
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_user_circle, 0);
+            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, userIcon(), null);
             if (!iconOnlyButtons) makeIconOnly((TextView) btnSettings);
             btnSettings.setOnClickListener(v -> showTopMenu());
             // The lone gear sits at the header's middle, not on its bottom line like the row of pills.
@@ -896,6 +896,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         });
         return true;
+    }
+
+    /** The icon at the end of the top bar's time: the chosen avatar on a white disc (Launcher settings, Profile), else
+     *  the plain user icon. The box stays the icon's 30dp; the disc is the size of its visible ring. */
+    private Drawable userIcon() {
+        String avatar = Avatars.avatar(this);
+        if (avatar.isEmpty()) return getDrawable(R.drawable.ic_user_circle);
+        int box = Math.round(30 * density), disc = Math.round(24 * density);
+        Drawable face = new Avatars.Face(avatar, box, disc);
+        face.setBounds(0, 0, box, box);
+        return face;
     }
 
     private Intent launcherSettingsIntent() {

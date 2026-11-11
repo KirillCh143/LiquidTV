@@ -240,4 +240,10 @@
     <string name="apps_reset_title">Сбросить настройки приложений?</string>
     <string name="apps_reset_message">Все скрытые приложения снова будут показаны, а «Показывать скрытые приложения» вернётся в «Выкл.».</string>
     <string name="apps_reset_done">Настройки приложений сброшены</string>
+    <string name="profile_section">Пользователь</string>
+    <string name="profile_name">Имя пользователя</string>
+    <string name="profile_avatar">Аватар</string>
+    <string name="profile_avatar_title">Аватар пользователя</string>
+    <string name="profile_avatar_none">Без аватара</string>
+    <string name="profile_name_hint">Имя</string>
 </resources>

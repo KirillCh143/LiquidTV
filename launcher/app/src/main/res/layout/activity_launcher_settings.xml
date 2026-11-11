@@ -467,13 +467,42 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <FrameLayout
-            android:clipChildren="false"
-            android:clipToPadding="false"
+            <ScrollView
                 android:id="@+id/pageProfile"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:visibility="gone" />
+                android:layout_marginStart="-30dp"
+                android:layout_marginEnd="-30dp"
+                android:paddingStart="30dp"
+                android:paddingEnd="30dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:requiresFadingEdge="vertical"
+                android:fadingEdgeLength="72dp"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="16dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="vertical">
+
+                    <TextView style="@style/SettingsSection" android:text="@string/profile_section" />
+
+                    <com.gathin.tvhome.SettingsValueRow
+                        android:id="@+id/profileNameChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp" />
+
+                    <com.gathin.tvhome.SettingsValueRow
+                        android:id="@+id/profileAvatarChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp" />
+                </LinearLayout>
+            </ScrollView>
 
             <ScrollView
                 android:id="@+id/pageWallpaper"

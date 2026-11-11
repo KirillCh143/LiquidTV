@@ -242,4 +242,10 @@
     <string name="apps_reset_title">Reset app settings?</string>
     <string name="apps_reset_message">Every hidden app is shown again and "Show hidden apps" goes back to Off.</string>
     <string name="apps_reset_done">App settings reset</string>
+    <string name="profile_section">User</string>
+    <string name="profile_name">User name</string>
+    <string name="profile_avatar">Avatar</string>
+    <string name="profile_avatar_title">Avatar</string>
+    <string name="profile_avatar_none">No avatar</string>
+    <string name="profile_name_hint">Name</string>
 </resources>

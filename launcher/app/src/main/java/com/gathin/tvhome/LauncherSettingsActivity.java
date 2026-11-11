@@ -41,7 +41,7 @@ public final class LauncherSettingsActivity extends Activity {
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
     private TextView libraryShowHiddenChoice;
     /** Slideshow parameters; stored only, nothing reads them yet. */
-    private TextView aboutBackupChoice, hiddenAppsChoice;
+    private TextView aboutBackupChoice, hiddenAppsChoice, profileNameChoice, profileAvatarChoice;
     private final java.util.Set<String> hiddenNow = new java.util.HashSet<>();
     private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo, slideshowCollectionChoice, screensaverChoice;
     /** What the two tiles of the shared two-choice sub-page mean: 0 Slideshow Yes/No, 1 Screensaver type. */
@@ -191,12 +191,14 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
         setUpAbout();
+        setUpProfile();
         setUpNav();
         // Rows scrolled out of a page go under the page's title (cut at the scroller's edge, faded over the last
         // 72dp by its fading edge), not over it; the sides stay open for the focused row's growth.
         clipAtEdges(findViewById(R.id.pagePersonal));
         clipAtEdges(findViewById(R.id.pageAbout));
         clipAtEdges(findViewById(R.id.pageApps));
+        clipAtEdges(findViewById(R.id.pageProfile));
         clipAtEdges(findViewById(R.id.pageWallpaper));
         clipAtEdges(findViewById(R.id.subWallpaperScroll));
         loadWallpaper();
@@ -240,6 +242,111 @@ public final class LauncherSettingsActivity extends Activity {
             nav[i].setOnClickListener(v -> showPage(index));
         }
         showPage(0);
+    }
+
+    /** The Profile page: the user's name (typed on the keyboard) and avatar (an emoji, picked from a list). */
+    private void setUpProfile() {
+        profileNameChoice = findViewById(R.id.profileNameChoice);
+        profileAvatarChoice = findViewById(R.id.profileAvatarChoice);
+        profileNameChoice.setOnClickListener(v -> {
+            android.widget.EditText input = new android.widget.EditText(this);
+            input.setSingleLine(true);
+            input.setHint(R.string.profile_name_hint);
+            input.setText(Avatars.name(this));
+            input.setSelection(input.getText().length());
+            input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(24)});
+            input.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+            AlertDialog dialog = new AlertDialog.Builder(this, R.style.SettingsDialog)
+                    .setTitle(R.string.profile_name)
+                    .setView(input)
+                    .setPositiveButton(android.R.string.ok, (d, which) -> {
+                        String name = input.getText().toString().trim();
+                        if (name.isEmpty() || name.equals(Avatars.DEFAULT_NAME)) choices.edit().remove(Avatars.NAME_KEY).apply();
+                        else choices.edit().putString(Avatars.NAME_KEY, name).apply();
+                        changed();
+                        refresh();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .create();
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+            dialog.show();
+        });
+        profileAvatarChoice.setOnClickListener(v -> openAvatars());
+    }
+
+    /** The avatar picker, like the wallpaper picker: a row per emoji, its picture, its name, a tick on the chosen one. */
+    private void openAvatars() {
+        navLock = true;
+        subRow = profileAvatarChoice;
+        subOpen = true;
+        findViewById(R.id.pageProfile).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.profile_avatar_title);
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        addBackRow(list, dp);
+        List<TextView> rows = new ArrayList<>();
+        String current = Avatars.avatar(this);
+        TextView chosen = null;
+        for (int i = -1; i < Avatars.LIST.length; i++) {
+            final String emoji = i < 0 ? "" : Avatars.LIST[i][0];
+            TextView row = avatarRow(dp, emoji, i < 0 ? getString(R.string.profile_avatar_none) : Avatars.LIST[i][1], i < 0);
+            row.setTag(emoji);
+            row.setOnClickListener(v -> {
+                if (emoji.isEmpty()) choices.edit().remove(Avatars.AVATAR_KEY).apply();
+                else choices.edit().putString(Avatars.AVATAR_KEY, emoji).apply();
+                changed();
+                for (TextView r : rows) tickAvatar(r, ((String) r.getTag()).equals(emoji));
+                refresh();
+            });
+            tickAvatar(row, emoji.equals(current));
+            if (emoji.equals(current)) chosen = row;
+            rows.add(row);
+            list.addView(row);
+        }
+        (chosen != null ? chosen : rows.get(0)).requestFocus();
+        navLock = false;
+    }
+
+    private TextView avatarRow(float dp, String emoji, String label, boolean plainIcon) {
+        TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+        row.setText(label);
+        row.setCompoundDrawablePadding((int) (14 * dp));
+        row.setMinHeight((int) (52 * dp));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+        rowParams.bottomMargin = (int) (12 * dp) - 12;
+        row.setLayoutParams(rowParams);
+        int size = (int) (36 * dp);
+        android.graphics.drawable.Drawable face;
+        row.setCompoundDrawableTintList(null);   // the green tick keeps its colour
+        if (plainIcon) {
+            face = getDrawable(R.drawable.ic_user_circle).mutate();
+            face.setTintList(getResources().getColorStateList(R.drawable.settings_text, getTheme()));   // the row's text colour
+            face.setBounds(0, 0, size, size);
+        } else {
+            face = new Avatars.Face(emoji, size, size);
+            face.setBounds(0, 0, size, size);
+        }
+        row.setCompoundDrawablesRelative(face, null, null, null);
+        return row;
+    }
+
+    private void tickAvatar(TextView row, boolean chosen) {
+        android.graphics.drawable.Drawable tick = getDrawable(chosen ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked);
+        android.graphics.drawable.Drawable[] d = row.getCompoundDrawablesRelative();
+        android.graphics.drawable.Drawable start = d[0];
+        android.graphics.Rect bounds = start == null ? null : new android.graphics.Rect(start.getBounds());
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(start, null, tick, null);
+        if (start != null && bounds != null) start.setBounds(bounds);
     }
 
     /** The About page: what this launcher is, and its settings backup, restore and reset. */
@@ -482,6 +589,7 @@ public final class LauncherSettingsActivity extends Activity {
             if (inNav(f) && toContent) {
                 if (page == 0) columnsChoice.requestFocus();
                 else if (page == 2) wallpaperChoice.requestFocus();
+                else if (page == 1) profileNameChoice.requestFocus();
                 else if (page == 3) libraryShowHiddenChoice.requestFocus();
                 else if (page == 4) aboutBackupChoice.requestFocus();
                 return true;
@@ -688,12 +796,14 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = true;
         subOpen = false;
         if (downloadCancel != null) downloadCancel.set(true);
+        boolean fromProfile = subRow == profileAvatarChoice;
         boolean fromApps = subRow == hiddenAppsChoice;
         boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowCollectionChoice || subRow == screensaverChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
         findViewById(R.id.pageSub).setVisibility(View.GONE);
-        findViewById(fromApps ? R.id.pageApps : fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
-        ((TextView) findViewById(R.id.pageTitle)).setText(fromApps ? R.string.nav_apps : fromWallpapers
-                ? R.string.nav_screensaver_wallpaper : R.string.nav_personalization);
+        findViewById(fromProfile ? R.id.pageProfile : fromApps ? R.id.pageApps : fromWallpapers ? R.id.pageWallpaper
+                : R.id.pagePersonal).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(fromProfile ? R.string.nav_profile : fromApps ? R.string.nav_apps
+                : fromWallpapers ? R.string.nav_screensaver_wallpaper : R.string.nav_personalization);
         refresh();
         if (subRow != null) subRow.requestFocus();
         navLock = false;
@@ -1010,6 +1120,10 @@ public final class LauncherSettingsActivity extends Activity {
         slideshowIntervalChoice.setText(getString(R.string.slideshow_interval_state,
                 getString(R.string.slideshow_minutes, slideshowMinutes)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
+        profileNameChoice.setText(getString(R.string.profile_name) + ": " + Avatars.name(this));
+        String avatarNow = Avatars.avatar(this);
+        profileAvatarChoice.setText(getString(R.string.profile_avatar) + ": "
+                + (avatarNow.isEmpty() ? getString(R.string.profile_avatar_none) : avatarNow));
         hiddenAppsChoice.setText(getString(R.string.apps_manage_hidden) + ": " + LibraryApps.loadHidden(this).size());
         libraryShowHiddenChoice.setText(getString(R.string.library_show_hidden_state,
                 getString(libraryShowHidden ? R.string.on : R.string.off)));
