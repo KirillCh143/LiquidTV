@@ -474,6 +474,16 @@
                 <TextView
                     style="@style/SettingsSection"
                     android:layout_marginTop="19dp"
+                    android:text="@string/screensaver_section" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/screensaverChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:layout_marginTop="19dp"
                     android:text="@string/wallpapers_advanced" />
 
                 <TextView

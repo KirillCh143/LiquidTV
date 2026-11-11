@@ -204,4 +204,11 @@
     <string name="wallpapers_advanced">Дополнительные параметры</string>
     <string name="slideshow_collection">Коллекция слайдшоу</string>
     <string name="slideshow_collection_state">Коллекция слайдшоу: %1$d</string>
+    <string name="screensaver_section">Заставка</string>
+    <string name="screensaver_kind_label">Тип заставки</string>
+    <string name="screensaver_kind_aerial">Стриминговая (Apple TV, нужен интернет)</string>
+    <string name="screensaver_kind_clock">Часы на обоях (без интернета)</string>
+    <string name="screensaver_state">Тип заставки: %1$s</string>
+    <string name="screensaver_state_aerial">Стриминговая</string>
+    <string name="screensaver_state_clock">Часы</string>
 </resources>

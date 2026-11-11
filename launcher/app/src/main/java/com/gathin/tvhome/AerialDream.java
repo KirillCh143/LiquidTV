@@ -12,6 +12,8 @@ import android.widget.TextView;
 public class AerialDream extends DreamService {
 
     private AerialPlayer player;
+    /** Launcher settings, "Screensaver type" = Clock: the offline clock on the wallpaper instead of the video. */
+    private LiquidClockLayout clock;
 
     @Override
     public void onAttachedToWindow() {
@@ -19,6 +21,11 @@ public class AerialDream extends DreamService {
         setInteractive(false);   // any key wakes the TV back to where it was
         setFullscreen(true);
         setScreenBright(true);
+        if (LiquidClockLayout.selected(this)) {
+            clock = new LiquidClockLayout(this);
+            setContentView(clock);
+            return;
+        }
         setContentView(R.layout.dream_aerial);
         player = new AerialPlayer(this, (TextureView) findViewById(R.id.aerialVideo),
                 (TextView) findViewById(R.id.aerialLabel), null);
@@ -27,17 +34,18 @@ public class AerialDream extends DreamService {
     @Override
     public void onDreamingStarted() {
         super.onDreamingStarted();
-        player.start();
+        if (clock != null) clock.start(); else player.start();
     }
 
     @Override
     public void onDreamingStopped() {
-        player.stop();
+        if (clock != null) clock.stop(); else player.stop();
         super.onDreamingStopped();
     }
 
     @Override
     public void onDetachedFromWindow() {
+        if (clock != null) clock.stop();
         if (player != null) player.stop();
         super.onDetachedFromWindow();
     }

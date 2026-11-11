@@ -206,4 +206,11 @@
     <string name="wallpapers_advanced">Advanced options</string>
     <string name="slideshow_collection">Slideshow collection</string>
     <string name="slideshow_collection_state">Slideshow collection: %1$d</string>
+    <string name="screensaver_section">Screensaver</string>
+    <string name="screensaver_kind_label">Screensaver type</string>
+    <string name="screensaver_kind_aerial">Streaming (Apple TV, needs internet)</string>
+    <string name="screensaver_kind_clock">Clock on the wallpaper (offline)</string>
+    <string name="screensaver_state">Screensaver type: %1$s</string>
+    <string name="screensaver_state_aerial">Streaming</string>
+    <string name="screensaver_state_clock">Clock</string>
 </resources>

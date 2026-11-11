@@ -137,6 +137,11 @@ final class ClockScene {
 
     /** WallpaperPlayer's decode: sampled and scaled down to cover the screen, never bigger than 4K. */
     private static Bitmap decode(File file, int screenW, int screenH) {
+        return decode(file, screenW, screenH, Bitmap.Config.RGB_565);
+    }
+
+    /** The same decode in the colour depth the caller asks for (LiquidClockLayout wants smooth gradients). */
+    static Bitmap decode(File file, int screenW, int screenH, Bitmap.Config config) {
         try {
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
@@ -153,7 +158,7 @@ final class ClockScene {
                 options.inDensity = scale[0];
                 options.inTargetDensity = scale[1];
             }
-            options.inPreferredConfig = Bitmap.Config.RGB_565;
+            options.inPreferredConfig = config;
             return BitmapFactory.decodeFile(file.getPath(), options);
         } catch (Exception | OutOfMemoryError failure) {
             return null;

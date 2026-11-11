@@ -39,7 +39,9 @@ public final class LauncherSettingsActivity extends Activity {
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
     private TextView libraryShowHiddenChoice;
     /** Slideshow parameters; stored only, nothing reads them yet. */
-    private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo, slideshowCollectionChoice;
+    private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo, slideshowCollectionChoice, screensaverChoice;
+    /** What the two tiles of the shared two-choice sub-page mean: 0 Slideshow Yes/No, 1 Screensaver type. */
+    private int twoChoiceMode;
     /** The wallpaper sub-page is picking the slideshow collection (many checks) rather than one wallpaper. */
     private boolean wallpaperMulti;
     private static final String SLIDESHOW_SET_KEY = "slideshow_set";
@@ -114,8 +116,10 @@ public final class LauncherSettingsActivity extends Activity {
         slideshowChoice.setOnClickListener(v -> openSlideshowChoices());
         slideshowYes = findViewById(R.id.slideshowYes);
         slideshowNo = findViewById(R.id.slideshowNo);
-        slideshowYes.setOnClickListener(v -> setSlideshow(true));
-        slideshowNo.setOnClickListener(v -> setSlideshow(false));
+        slideshowYes.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_AERIAL); else setSlideshow(true); });
+        slideshowNo.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_CLOCK); else setSlideshow(false); });
+        screensaverChoice = findViewById(R.id.screensaverChoice);
+        screensaverChoice.setOnClickListener(v -> openScreensaverChoices());
         slideshowCollectionChoice = findViewById(R.id.slideshowCollectionChoice);
         slideshowCollectionChoice.setOnClickListener(v -> openWallpapers(true));
         slideshowIntervalChoice = findViewById(R.id.slideshowIntervalChoice);
@@ -324,6 +328,41 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = false;
     }
 
+    private boolean screensaverIsClock() {
+        return LiquidClockLayout.KIND_CLOCK.equals(choices.getString(LiquidClockLayout.KIND_KEY, LiquidClockLayout.KIND_AERIAL));
+    }
+
+    private void setScreensaver(String kind) {
+        choices.edit().putString(LiquidClockLayout.KIND_KEY, kind).apply();   // read when the screensaver starts
+        refresh();
+    }
+
+    /** Screensaver type: the same two-tile sub-page as Slideshow, with the video first and the clock second. */
+    private void openScreensaverChoices() {
+        navLock = true;
+        twoChoiceMode = 1;
+        subRow = screensaverChoice;
+        subOpen = true;
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        slideshowYes.setText(R.string.screensaver_kind_aerial);
+        slideshowNo.setText(R.string.screensaver_kind_clock);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.screensaver_kind_label);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.screensaver_kind_label);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        (screensaverIsClock() ? slideshowNo : slideshowYes).requestFocus();
+        navLock = false;
+    }
+
     private void setSlideshow(boolean on) {
         if (slideshow == on) return;
         slideshow = on;
@@ -345,6 +384,9 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
         findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
         findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        twoChoiceMode = 0;
+        slideshowYes.setText(R.string.yes);
+        slideshowNo.setText(R.string.no);
         ((TextView) findViewById(R.id.pageTitle)).setText(R.string.slideshow_label);
         ((TextView) findViewById(R.id.subSection)).setText(R.string.slideshow_label);
         refresh();
@@ -409,7 +451,7 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = true;
         subOpen = false;
         if (downloadCancel != null) downloadCancel.set(true);
-        boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowCollectionChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
+        boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowCollectionChoice || subRow == screensaverChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
         findViewById(R.id.pageSub).setVisibility(View.GONE);
         findViewById(fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
         ((TextView) findViewById(R.id.pageTitle)).setText(fromWallpapers ? R.string.nav_screensaver_wallpaper
@@ -741,10 +783,13 @@ public final class LauncherSettingsActivity extends Activity {
                         : DefaultWallpaper.isChoice(wallpaperCurrent) ? localName(builtinName(wallpaperCurrent))
                         : wallpaperCurrent != null ? localName(wallpaperLabel(wallpaperCurrent))
                         : getString(R.string.wallpaper_theme_default)));
+        boolean firstChosen = twoChoiceMode == 1 ? !screensaverIsClock() : slideshow;
         slideshowYes.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
-                slideshow ? R.drawable.ic_settings_check : 0, 0);
+                firstChosen ? R.drawable.ic_settings_check : 0, 0);
         slideshowNo.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
-                slideshow ? 0 : R.drawable.ic_settings_check, 0);
+                firstChosen ? 0 : R.drawable.ic_settings_check, 0);
+        screensaverChoice.setText(getString(R.string.screensaver_state,
+                getString(screensaverIsClock() ? R.string.screensaver_state_clock : R.string.screensaver_state_aerial)));
         slideshowChoice.setText(getString(R.string.slideshow_state,
                 getString(slideshow ? R.string.yes : R.string.no)));
         slideshowIntervalChoice.setText(getString(R.string.slideshow_interval_state,
