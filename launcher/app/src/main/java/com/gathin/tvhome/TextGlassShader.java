@@ -10,12 +10,14 @@ package com.gathin.tvhome;
 final class TextGlassShader {
     private TextGlassShader() { }
 
-    /** Uniforms: float refractionHeight (the edge band's width, px); float refractionAmount (peak displacement at the
-     *  edge, px). Shaders: content (the blurred wallpaper), mask (the text as alpha, same pixel space). */
+    /** Uniforms: float refractionHeight (the digits' edge band, px); float refractionHeightSmall (the AM/PM label's); float refractionAmount (peak displacement at the
+     *  edge, px). Shaders: content (the blurred wallpaper), mask (the text: its alpha is the coverage, red marks the
+     *  digits and green the small label, same pixel space). */
     static final String SOURCE = ""
             + "uniform shader content;\n"
             + "uniform shader mask;\n"
             + "uniform float refractionHeight;\n"
+            + "uniform float refractionHeightSmall;\n"
             + "uniform float refractionAmount;\n"
             + "\n"
             + "float cover(float2 p) {\n"
@@ -23,11 +25,14 @@ final class TextGlassShader {
             + "}\n"
             + "\n"
             + "half4 main(float2 coord) {\n"
-            + "    float inside = cover(coord);\n"
+            + "    half4 here = mask.eval(coord);\n"
+            + "    float inside = here.a;\n"
             + "    if (inside < 0.01) {\n"
             + "        return half4(0.0);\n"
             + "    }\n"
-            + "    float r = max(refractionHeight, 1.0);\n"
+            // The mask is red under the digits and green under the small AM/PM label, which has its own, thinner band.
+            + "    float small = step(here.r + 0.001, here.g);\n"
+            + "    float r = max(mix(refractionHeight, refractionHeightSmall, small), 1.0);\n"
             // Twelve taps on two rings: their mean says how deep inside the glyph this pixel is (about 0.5 right at
             // an edge, 1 well inside), and their sum, weighted by direction, points to the inside.
             + "    float2 toward = float2(0.0, 0.0);\n"

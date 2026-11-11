@@ -215,10 +215,10 @@ final class LiquidClockLayout extends FrameLayout {
 
     private void drawMask(String time, String ampm, String date) {
         int w = getWidth(), h = getHeight();
-        Bitmap next = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8);
+        Bitmap next = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);   // red: the digits, green: the AM/PM label
         Canvas canvas = new Canvas(next);
         Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-        text.setColor(0xFFFFFFFF);
+        text.setColor(0xFFFF0000);
         android.graphics.Typeface rounded = clockFace();
         text.setTypeface(rounded != null ? rounded : UiFont.get(getContext(), R.string.font_medium));
         text.setFakeBoldText(rounded == null);   // the launcher's own medium face needs help to be this heavy
@@ -226,6 +226,7 @@ final class LiquidClockLayout extends FrameLayout {
         text.setTextSize(h * 0.38f);
         // AM/PM sits to the right of the time at its top edge, a fifth of its size; the time stays centred.
         Paint small = new Paint(text);
+        small.setColor(0xFF00FF00);
         float gap = h * 0.02f;
         float timeWidth = text.measureText(time);
         float ampmWidth = 0;
@@ -283,6 +284,7 @@ final class LiquidClockLayout extends FrameLayout {
                 shader.setInputShader("mask", new BitmapShader(maskBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
                 // An edge band of 1dp (the dock uses 2dp), the peak displacement 34dp as at the dock.
                 shader.setFloatUniform("refractionHeight", 1f * density);
+                shader.setFloatUniform("refractionHeightSmall", 0.75f * density);   // the small AM/PM label
                 shader.setFloatUniform("refractionAmount", 34f * density);
                 effect = RenderEffect.createChainEffect(
                         RenderEffect.createRuntimeShaderEffect(shader, "content"), blurBase);

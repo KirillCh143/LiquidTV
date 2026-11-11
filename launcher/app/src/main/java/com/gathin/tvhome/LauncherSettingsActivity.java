@@ -172,6 +172,9 @@ public final class LauncherSettingsActivity extends Activity {
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
         setUpNav();
         loadWallpaper();
+        // Draw the wallpaper previews now, in the background, so the picker opens with them already in the cache.
+        float dp = getResources().getDisplayMetrics().density;
+        WallpaperThumbs.prefetch(getApplicationContext(), (int) (64 * dp), (int) (36 * dp), 5 * dp);
         refresh();
         columnsChoice.requestFocus();
     }
@@ -626,16 +629,23 @@ public final class LauncherSettingsActivity extends Activity {
         list.addView(row);
         wallpaperRows.add(row);
         int w = (int) (64 * dp), h = (int) (36 * dp);
+        String key = WallpaperThumbs.key(this, file, choice, w, h);
+        android.graphics.Bitmap ready = WallpaperThumbs.peek(key);
+        if (ready != null) {
+            setThumb(row, ready, w, h);   // cached: there at once, nothing to wait for
+            return;
+        }
         thumbs.execute(() -> {
-            android.graphics.Bitmap thumb = thumbnail(file != null ? file : DefaultWallpaper.fileFor(this, choice), w, h, 5 * dp);
+            android.graphics.Bitmap thumb = WallpaperThumbs.load(this, key, file, choice, w, h, 5 * dp);
             if (thumb == null) return;
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                android.graphics.drawable.Drawable d = new android.graphics.drawable.BitmapDrawable(getResources(), thumb);
-                d.setBounds(0, 0, w, h);
-                row.setCompoundDrawablesRelative(d, null, row.getCompoundDrawablesRelative()[2], null);
-            });
+            runOnUiThread(() -> { if (!isDestroyed()) setThumb(row, thumb, w, h); });
         });
+    }
+
+    private void setThumb(TextView row, android.graphics.Bitmap thumb, int w, int h) {
+        android.graphics.drawable.Drawable d = new android.graphics.drawable.BitmapDrawable(getResources(), thumb);
+        d.setBounds(0, 0, w, h);
+        row.setCompoundDrawablesRelative(d, null, row.getCompoundDrawablesRelative()[2], null);
     }
 
     private java.util.Set<String> slideshowSet() {
@@ -668,31 +678,6 @@ public final class LauncherSettingsActivity extends Activity {
                             ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked), null);
             if (d[0] != null) d[0].setBounds(0, 0, d[0].getBounds().width(), d[0].getBounds().height());
         }
-    }
-
-    /** A small rounded preview, centre-cropped; null when the picture cannot be read. */
-    private static android.graphics.Bitmap thumbnail(File file, int w, int h, float radius) {
-        if (file == null) return null;
-        android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
-        o.inJustDecodeBounds = true;
-        android.graphics.BitmapFactory.decodeFile(file.getPath(), o);
-        if (o.outWidth <= 0) return null;
-        o.inSampleSize = Math.max(1, Integer.highestOneBit(Math.max(1, o.outWidth / (w * 2))));
-        o.inJustDecodeBounds = false;
-        android.graphics.Bitmap src = android.graphics.BitmapFactory.decodeFile(file.getPath(), o);
-        if (src == null) return null;
-        android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
-        android.graphics.Canvas canvas = new android.graphics.Canvas(out);
-        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG
-                | android.graphics.Paint.FILTER_BITMAP_FLAG);
-        canvas.drawRoundRect(new android.graphics.RectF(0, 0, w, h), radius, radius, paint);
-        paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
-        float scale = Math.max(w / (float) src.getWidth(), h / (float) src.getHeight());
-        float dw = src.getWidth() * scale, dh = src.getHeight() * scale;
-        canvas.drawBitmap(src, null, new android.graphics.RectF((w - dw) / 2f, (h - dh) / 2f,
-                (w + dw) / 2f, (h + dh) / 2f), paint);
-        src.recycle();
-        return out;
     }
 
     /** Off, then every app with a TV entry point by name. Saved at once; it is read on the next boot. */
