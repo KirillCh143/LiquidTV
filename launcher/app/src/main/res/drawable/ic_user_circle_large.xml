@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home's user icon: ic_user_circle drawn 8.7% larger inside the same 30dp box, so its ring is 26dp (52 px at
+<!-- Home's user icon: ic_user_circle drawn 17.5% larger inside the same 30dp box, so its ring is 28dp (56 px at
      320 dpi) across, the size of the avatar's disc. Tabler Icons "user-circle" (MIT licence). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="30dp" android:height="30dp"
     android:viewportWidth="24" android:viewportHeight="24">
     <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.25"
         android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M12,12m-9.78,0a9.78,9.78 0,1 0,19.56 0a9.78,9.78 0,1 0,-19.56 0" />
+        android:pathData="M12,12m-10.575,0a10.575,10.575 0,1 0,21.15 0a10.575,10.575 0,1 0,-21.15 0" />
     <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.25"
         android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M12,9.83m-3.26,0a3.26,3.26 0,1 0,6.52 0a3.26,3.26 0,1 0,-6.52 0" />
+        android:pathData="M12,9.65m-3.525,0a3.525,3.525 0,1 0,7.05 0a3.525,3.525 0,1 0,-7.05 0" />
     <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.25"
         android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M5.662,19.443a4.347,4.347 0,0 1,4.164 -3.096h4.347a4.347,4.347 0,0 1,4.166 3.103" />
+        android:pathData="M5.147,20.048a4.7,4.7 0,0 1,4.503 -3.348h4.7a4.7,4.7 0,0 1,4.505 3.355" />
 </vector>

@@ -899,11 +899,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** The icon at the end of the top bar's time: the chosen avatar on a white disc (Launcher settings, Profile), else
-     *  the plain user icon. The box stays the icon's 30dp; the disc is the size of its ring (26dp, 52 px at 320 dpi). */
+     *  the plain user icon. The box stays the icon's 30dp; the disc is the size of its ring (28dp, 56 px at 320 dpi). */
     private Drawable userIcon() {
         String avatar = Avatars.avatar(this);
         if (avatar.isEmpty()) return getDrawable(R.drawable.ic_user_circle_large);
-        int box = Math.round(30 * density), disc = Math.round(26 * density);
+        int box = Math.round(30 * density), disc = Math.round(28 * density);
         Drawable face = new Avatars.Face(avatar, box, disc);
         face.setBounds(0, 0, box, box);
         return face;
