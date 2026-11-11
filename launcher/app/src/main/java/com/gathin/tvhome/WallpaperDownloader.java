@@ -87,7 +87,7 @@ final class WallpaperDownloader {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(15000);
         c.setReadTimeout(30000);
-        c.setRequestProperty("User-Agent", "LiquidTV");
+        c.setRequestProperty("User-Agent", "liquidOS");
         if (c.getResponseCode() != 200) throw new java.io.IOException("HTTP " + c.getResponseCode());
         return c;
     }

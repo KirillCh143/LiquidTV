@@ -17,7 +17,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#1AFFFFFF" />
+        android:background="?attr/settingsScrim" />
 
 <LinearLayout
     android:layout_width="match_parent"
@@ -208,12 +208,31 @@
             android:paddingBottom="16dp"
             android:orientation="vertical">
 
-            <TextView style="@style/SettingsSection" android:text="@string/settings_section_look" />
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_theme" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/colorSchemeChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/dockBackdropChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_grid" />
 
             <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/columnsChoice"
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/tileRadiusChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_look" />
 
             <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/dockOpacityChoice"
@@ -222,11 +241,6 @@
 
             <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/dockBlurChoice"
-                style="@style/SettingsRow"
-                android:layout_marginBottom="5dp" />
-
-            <com.gathin.tvhome.SettingsValueRow
-                android:id="@+id/dockBackdropChoice"
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp" />
 
@@ -249,21 +263,6 @@
                 android:layout_marginBottom="5dp"
                 android:text="@string/follow_theme" />
             <TextView style="@style/SettingsHint" android:text="@string/follow_theme_hint" />
-
-            <TextView style="@style/SettingsSection" android:text="@string/settings_section_system" />
-
-            <TextView
-                android:id="@+id/defaultHomeChoice"
-                style="@style/SettingsRow"
-                android:layout_marginBottom="5dp"
-                android:text="@string/home_settings" />
-            <TextView style="@style/SettingsHint" android:layout_marginBottom="5dp" android:text="@string/home_settings_help" />
-
-            <TextView
-                android:id="@+id/tvSettingsChoice"
-                style="@style/SettingsRow"
-                android:layout_marginBottom="5dp"
-                android:text="@string/tv_settings" />
         </LinearLayout>
     </ScrollView>
 
@@ -439,6 +438,33 @@
                     android:id="@+id/slideshowNo"
                     style="@style/SettingsOptionRow"
                     android:text="@string/no" />
+
+                <TextView
+                    android:id="@+id/slideshowThird"
+                    style="@style/SettingsOptionRow"
+                    android:text="@string/color_scheme_mixed"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/schemeAdvanced"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView style="@style/SettingsSection" android:layout_marginTop="14dp" android:text="@string/scheme_advanced" />
+
+                    <com.gathin.tvhome.SettingsValueRow android:id="@+id/schemeMenuRow" style="@style/SettingsRow" android:layout_marginBottom="5dp" />
+                    <com.gathin.tvhome.SettingsValueRow android:id="@+id/schemeDockRow" style="@style/SettingsRow" android:layout_marginBottom="5dp" />
+                    <com.gathin.tvhome.SettingsValueRow android:id="@+id/schemeGridRow" style="@style/SettingsRow" android:layout_marginBottom="5dp" />
+                    <com.gathin.tvhome.SettingsValueRow android:id="@+id/schemeSubRow" style="@style/SettingsRow" android:layout_marginBottom="5dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/slideshowHint"
+                    style="@style/SettingsHint"
+                    android:text="@string/screensaver_kind_aerial_hint"
+                    android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -529,6 +555,26 @@
 
                 <TextView
                     style="@style/SettingsSection"
+                    android:text="@string/screensaver_section" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/screensaverUseChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/screensaverChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <com.gathin.tvhome.SettingsValueRow
+                    android:id="@+id/sleepTimerChoice"
+                    style="@style/SettingsRow"
+                    android:layout_marginBottom="5dp" />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:layout_marginTop="19dp"
                     android:text="@string/wallpapers_manage" />
 
                 <com.gathin.tvhome.SettingsValueRow
@@ -553,16 +599,6 @@
 
                 <com.gathin.tvhome.SettingsValueRow
                     android:id="@+id/slideshowCollectionChoice"
-                    style="@style/SettingsRow"
-                    android:layout_marginBottom="5dp" />
-
-                <TextView
-                    style="@style/SettingsSection"
-                    android:layout_marginTop="19dp"
-                    android:text="@string/screensaver_section" />
-
-                <com.gathin.tvhome.SettingsValueRow
-                    android:id="@+id/screensaverChoice"
                     style="@style/SettingsRow"
                     android:layout_marginBottom="5dp" />
 
@@ -674,6 +710,17 @@
                             android:id="@+id/aboutVersion"
                             style="@style/SettingsInfoRow" />
                     </LinearLayout>
+
+                    <TextView
+                        style="@style/SettingsSection"
+                        android:layout_marginTop="19dp"
+                        android:text="@string/about_section_home_screen" />
+
+                    <TextView
+                        android:id="@+id/defaultHomeChoice"
+                        style="@style/SettingsRow"
+                        android:layout_marginBottom="5dp"
+                        android:text="@string/home_settings" />
 
                     <TextView
                         style="@style/SettingsSection"

@@ -339,7 +339,7 @@ final class LiquidClockLayout extends FrameLayout {
                     white.setAlpha(alpha);   // scales the gradient, as the dock band's own alpha does
                     canvas.drawRect(0, 0, getWidth(), getHeight(), white);
                 } else {
-                    canvas.drawColor((alpha << 24) | 0x141416);
+                    canvas.drawColor((alpha << 24) | (Config.dark(Config.PART_DOCK) ? 0x000000 : 0x141416));
                 }
             }
             canvas.drawBitmap(mask, 0, 0, keep);

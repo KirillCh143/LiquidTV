@@ -46,6 +46,48 @@ final class Config {
     /** Local patch: the Gaussian blur's sigma behind the dock, the Menu button and the Settings grid's tiles, in dp
      *  (0 = no blur), chosen in Launcher settings. */
     static final String DOCK_BLUR_KEY = "dock_blur";
+    /** App tile corner radius in px (local patch): 0..MAX_TILE_RADIUS, default 36. */
+    static final String TILE_RADIUS_KEY = "tile_radius";
+    static final int MAX_TILE_RADIUS = 50;
+    /** Colour scheme (local patch): SCHEME_LIGHT (the default look), SCHEME_DARK (black washes) or SCHEME_MIXED,
+     *  where each part of the launcher takes its own scheme. */
+    static final String SCHEME_KEY = "color_scheme";
+    static final String LEGACY_DARK_KEY = "color_scheme_dark";   // the first version's yes/no
+    static final int SCHEME_LIGHT = 0, SCHEME_DARK = 1, SCHEME_MIXED = 2;
+    /** The parts a mixed scheme sets one by one; a part's own key holds true for dark. */
+    static final int PART_MENU = 0, PART_DOCK = 1, PART_GRID = 2, PART_SUB = 3;
+    static final String[] PART_KEYS = {"scheme_menu", "scheme_dock", "scheme_grid", "scheme_sub"};
+    /** Set whenever Config loads (or the scheme changes), so washes drawn without a Config in hand follow it. */
+    private static final boolean[] DARK_PARTS = new boolean[4];
+
+    static int colorScheme(Context context) {
+        android.content.SharedPreferences p = context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE);
+        int mode = p.getInt(SCHEME_KEY, p.getBoolean(LEGACY_DARK_KEY, false) ? SCHEME_DARK : SCHEME_LIGHT);
+        return Math.max(SCHEME_LIGHT, Math.min(SCHEME_MIXED, mode));
+    }
+
+    /** Whether one part is dark under the chosen scheme. */
+    static boolean dark(Context context, int part) {
+        int mode = colorScheme(context);
+        if (mode != SCHEME_MIXED) return mode == SCHEME_DARK;
+        return context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getBoolean(PART_KEYS[part], false);
+    }
+
+    /** Remembers every part's scheme for the drawing code that has no Context. */
+    static void applyScheme(Context context) {
+        for (int i = 0; i < DARK_PARTS.length; i++) DARK_PARTS[i] = dark(context, i);
+    }
+
+    /** The part's scheme as of the last load. */
+    static boolean dark(int part) {
+        return DARK_PARTS[part];
+    }
+    static final int DEFAULT_TILE_RADIUS = 36;
+
+    static int tileRadius(Context context) {
+        int saved = context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getInt(TILE_RADIUS_KEY, DEFAULT_TILE_RADIUS);
+        return Math.max(0, Math.min(MAX_TILE_RADIUS, saved));
+    }
     static final int DEFAULT_DOCK_BLUR = 8, MAX_DOCK_BLUR = 20;
     /**
      * Counts the changes made in Launcher settings. Home remembers the count it was built with and rebuilds on
@@ -378,7 +420,12 @@ final class Config {
     /** Local patch: whether a dock band should draw as light frosted glass (dock_glass) — gated to dock_backdrop
      *  "liquid" (MainActivity's own dock, and AppLibraryActivity's, which otherwise matches Home's look). */
     static boolean dockLightGlass(Config cfg) {
-        return cfg.dockGlass && BACKDROP_LIQUID.equals(cfg.dockBackdrop);
+        return dockLightGlass(cfg, dark(PART_DOCK));
+    }
+
+    /** The same for a part with its own scheme (the pills and the submenu use PART_SUB): never light when dark. */
+    static boolean dockLightGlass(Config cfg, boolean dark) {
+        return cfg.dockGlass && BACKDROP_LIQUID.equals(cfg.dockBackdrop) && !dark;
     }
 
     /** A known glass_style, or glass (the default) for anything else. */
@@ -415,6 +462,8 @@ final class Config {
     }
 
     static Config load(Context ctx) {
+        AppAdapter.tileRadiusPx = tileRadius(ctx);
+        applyScheme(ctx);
         Resources res = ctx.getResources();
         List<String> dock = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.dock_apps)));
         boolean fillDock = res.getBoolean(R.bool.fill_dock);

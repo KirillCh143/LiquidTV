@@ -93,7 +93,7 @@ final class SettingsBackup {
     private static JSONObject export(Context context) throws Exception {
         JSONObject root = new JSONObject();
         root.put("format", 1);
-        root.put("app", "LiquidTV");
+        root.put("app", "liquidOS");
         try {
             root.put("version", context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName);
         } catch (Exception ignored) {
@@ -126,7 +126,8 @@ final class SettingsBackup {
     }
 
     private static void apply(Context context, JSONObject root) throws Exception {
-        if (!"LiquidTV".equals(root.optString("app"))) throw new IllegalArgumentException("not a LiquidTV backup");
+        String app = root.optString("app");
+        if (!"liquidOS".equals(app) && !"LiquidTV".equals(app)) throw new IllegalArgumentException("not a liquidOS backup");
         SharedPreferences sp = context.getSharedPreferences(Config.SETTINGS_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor edit = sp.edit().clear();
         JSONObject prefs = root.optJSONObject("preferences");

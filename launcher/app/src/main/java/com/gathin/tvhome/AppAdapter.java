@@ -867,8 +867,123 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Local patch: the corner radius of a tile at its layout size, in px. A focused tile (zoomed x FOCUS_SCALE)
      *  shows 46 px corners; an unfocused one (x REST_SCALE) shows 46 * REST_SCALE / FOCUS_SCALE, i.e. proportionally less. */
+    /** Tile corner radius in px (Config.tileRadius, set whenever Config loads). */
+    static volatile int tileRadiusPx = Config.DEFAULT_TILE_RADIUS;
+
     static float cornerRadius(int tileWidthPx, float density) {
-        return 46f / FOCUS_SCALE;
+        return tileRadiusPx;
+    }
+
+    /** The focused tile's edge light: an inner glow (a wide, blurred white stroke on the edge, clipped to the tile, so
+     *  the light fades inwards like Photoshop's Inner Glow; Android 9+) under a 1dp rim. Both are bright at the top
+     *  left and fade towards the bottom right, along a 60 degree line (the unscaled tile; the focus zoom grows them). */
+    /** Comparison switch: the inner glow as an AGSL shader (Android 13+, distance to the rounded edge) instead of the
+     *  blurred stroke. Older versions always use the blurred stroke. */
+    static final boolean GLOW_SHADER = true;
+
+    /** The glow as AGSL: brightness from the distance to the tile's rounded edge, falling off over {@code depth}, scaled
+     *  along the 60 degree line by four stops (alpha at 0, 35, 75 and 100%). */
+    private static final String GLOW_AGSL = ""
+            + "uniform float2 center;\n"
+            + "uniform float2 halfSize;\n"
+            + "uniform float radius;\n"
+            + "uniform float depth;\n"
+            + "uniform float falloff;\n"
+            + "uniform float2 dir;\n"
+            + "uniform float reach;\n"
+            + "uniform float4 stops;\n"
+            + "half4 main(float2 fragCoord) {\n"
+            + "    float2 p = fragCoord - center;\n"
+            + "    float2 q = abs(p) - halfSize + radius;\n"
+            + "    float d = -(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius);\n"   // px inside the edge
+            + "    if (d < 0.0) return half4(0.0);\n"
+            + "    float t = 1.0 - clamp(d / depth, 0.0, 1.0);\n"
+            + "    float glow = pow(t, falloff);\n"
+            + "    float g = clamp(dot(p, dir) / reach * 0.5 + 0.5, 0.0, 1.0);\n"
+            + "    float a = g < 0.35 ? mix(stops.x, stops.y, g / 0.35)\n"
+            + "            : g < 0.75 ? mix(stops.y, stops.z, (g - 0.35) / 0.4)\n"
+            + "            : mix(stops.z, stops.w, (g - 0.75) / 0.25);\n"
+            + "    float v = glow * a;\n"
+            + "    return half4(v, v, v, v);\n"   // premultiplied white
+            + "}\n";
+
+    private static final class RimDrawable extends android.graphics.drawable.Drawable {
+        private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Paint glow = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.RectF rect = new android.graphics.RectF();
+        private final android.graphics.RectF edge = new android.graphics.RectF();
+        private final android.graphics.Path clip = new android.graphics.Path();
+        private final float stroke;
+        private final boolean hasGlow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
+        private final boolean useShader = GLOW_SHADER && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU;
+        private final float density;
+        private android.graphics.RuntimeShader glowShader;
+
+        RimDrawable(float density) {
+            this.density = density;
+            stroke = 1f * density;
+            paint.setStyle(android.graphics.Paint.Style.STROKE);
+            paint.setStrokeWidth(stroke);
+            glow.setStyle(android.graphics.Paint.Style.STROKE);
+            glow.setStrokeWidth(2f * density);
+            if (hasGlow) glow.setMaskFilter(new android.graphics.BlurMaskFilter(5f * density, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        }
+
+        private android.graphics.LinearGradient gradient(android.graphics.Rect b, int[] colors) {
+            double angle = Math.toRadians(60);   // measured from the horizontal, downwards
+            float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
+            float cx = b.exactCenterX(), cy = b.exactCenterY();
+            float reach = (b.width() * Math.abs(dx) + b.height() * Math.abs(dy)) / 2f;   // the line spans the whole tile
+            return new android.graphics.LinearGradient(cx - dx * reach, cy - dy * reach, cx + dx * reach, cy + dy * reach,
+                    colors, new float[]{0f, 0.35f, 0.75f, 1f}, android.graphics.Shader.TileMode.CLAMP);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.isEmpty()) return;
+            float radius = cornerRadius(b.width(), 1f);
+            if (useShader) {
+                drawShaderGlow(canvas, b, radius);
+            } else if (hasGlow) {
+                edge.set(b.left, b.top, b.right, b.bottom);
+                clip.rewind();
+                clip.addRoundRect(edge, radius, radius, android.graphics.Path.Direction.CW);
+                glow.setShader(gradient(b, new int[]{0x66FFFFFF, 0x1AFFFFFF, 0x00FFFFFF, 0x33FFFFFF}));
+                int saved = canvas.save();
+                canvas.clipPath(clip);
+                canvas.drawRoundRect(edge, radius, radius, glow);
+                canvas.restoreToCount(saved);
+            }
+            float half = stroke / 2f;
+            rect.set(b.left + half, b.top + half, b.right - half, b.bottom - half);
+            paint.setShader(gradient(b, new int[]{0x7AFFFFFF, 0x0DFFFFFF, 0x00FFFFFF, 0x33FFFFFF}));
+            float r = Math.max(0f, radius - half);
+            canvas.drawRoundRect(rect, r, r, paint);
+        }
+
+        @android.annotation.TargetApi(Build.VERSION_CODES.TIRAMISU)
+        private void drawShaderGlow(android.graphics.Canvas canvas, android.graphics.Rect b, float radius) {
+            if (glowShader == null) glowShader = new android.graphics.RuntimeShader(GLOW_AGSL);
+            double angle = Math.toRadians(60);
+            float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
+            glowShader.setFloatUniform("center", b.exactCenterX(), b.exactCenterY());
+            glowShader.setFloatUniform("halfSize", b.width() / 2f, b.height() / 2f);
+            glowShader.setFloatUniform("radius", radius);
+            glowShader.setFloatUniform("depth", 6f * density);      // how far the light reaches in
+            glowShader.setFloatUniform("falloff", 2f);              // 1 = linear, higher = tighter to the edge
+            glowShader.setFloatUniform("dir", dx, dy);
+            glowShader.setFloatUniform("reach", b.width() * Math.abs(dx) + b.height() * Math.abs(dy));
+            glowShader.setFloatUniform("stops", 0.40f, 0.10f, 0f, 0.20f);
+            shaderPaint.setShader(glowShader);
+            canvas.drawRoundRect(b.left, b.top, b.right, b.bottom, radius, radius, shaderPaint);
+        }
+
+        private final android.graphics.Paint shaderPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); glow.setAlpha(alpha); shaderPaint.setAlpha(alpha); }
+        @Override public void setColorFilter(android.graphics.ColorFilter filter) { paint.setColorFilter(filter); glow.setColorFilter(filter); }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
     }
 
     static final class Holder extends RecyclerView.ViewHolder {
@@ -908,6 +1023,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             });
             card.setClipToOutline(true);
+            // tvOS-style rim on the focused tile: a thin stroke whose light fades down the tile.
+            android.graphics.drawable.StateListDrawable rim = new android.graphics.drawable.StateListDrawable();
+            rim.addState(new int[]{android.R.attr.state_focused}, new RimDrawable(density));
+            rim.addState(new int[]{}, new android.graphics.drawable.ColorDrawable(0));
+            card.setForeground(rim);
             // Local patch: AppLibraryActivity's drop shadow (tileShadow, see onBindViewHolder) read as too
             // strong/hard-edged against its light wallpaper+wash background at the system's default shadow
             // colour — a lighter, more diffuse shadow colour instead, elevation unchanged. No effect on Home

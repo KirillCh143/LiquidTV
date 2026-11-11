@@ -52,7 +52,7 @@
          longer launcher_settings/settings strings used elsewhere, since the tile is small. -->
     <string name="grid_reboot">Power</string>
     <string name="grid_wifi">Network</string>
-    <string name="grid_launcher_settings">Home screen</string>
+    <string name="grid_launcher_settings">Main screen</string>
     <string name="menu">Menu</string>
     <string name="grid_android_settings">Settings</string>
     <string name="grid_sleep">Screensaver</string>
@@ -62,6 +62,8 @@
     <string name="dock_backdrop_label">Dock backdrop</string>
     <string name="dock_backdrop_color">Color</string>
     <string name="dock_backdrop_blur">Blur</string>
+    <string name="dock_backdrop_blur_note">(Android 12 and up)</string>
+    <string name="dock_backdrop_liquid_note">(Android 13 and up)</string>
     <string name="dock_backdrop_liquid">Liquid glass</string>
     <string name="wallpaper_label">Wallpaper</string>
     <string name="wallpaper_state">Wallpaper: %1$s</string>
@@ -172,11 +174,10 @@
     <string name="recent_apps_hint">Press ▲ on an app to close it</string>
     <string name="settings_section_look">Look</string>
     <string name="settings_section_home">Behaviour</string>
-    <string name="settings_section_system">System</string>
     <string name="nav_personalization">Personalization</string>
     <string name="nav_profile">Profile</string>
     <string name="nav_screensaver_wallpaper">Screensaver and wallpaper</string>
-    <string name="settings_title">Home screen</string>
+    <string name="settings_title">Main screen</string>
     <string name="settings_back">Back</string>
     <string name="columns_desc">How many apps fit in one row of the Home screen.</string>
     <string name="dock_opacity_desc">How opaque the dock panel is. 0% is fully transparent.</string>
@@ -208,16 +209,17 @@
     <string name="slideshow_collection_state">Slideshow collection: %1$d</string>
     <string name="screensaver_section">Screensaver</string>
     <string name="screensaver_kind_label">Screensaver type</string>
-    <string name="screensaver_kind_aerial">Streaming (Apple TV, needs internet)</string>
-    <string name="screensaver_kind_clock">Clock on the wallpaper (offline)</string>
+    <string name="screensaver_kind_aerial">Live wallpapers (Apple TV)</string>
+    <string name="screensaver_kind_clock">Clock</string>
     <string name="screensaver_state">Screensaver type: %1$s</string>
-    <string name="screensaver_state_aerial">Streaming</string>
+    <string name="screensaver_state_aerial">Live wallpapers</string>
     <string name="screensaver_state_clock">Clock</string>
     <string name="nav_about">About</string>
     <string name="about_section_app">Application</string>
-    <string name="about_home">Home screen</string>
+    <string name="about_home">Main screen</string>
     <string name="about_developer">Developer</string>
     <string name="about_version">Version</string>
+    <string name="about_section_home_screen">Main screen</string>
     <string name="about_section_backup">Backup and restore</string>
     <string name="about_backup_save">Save settings</string>
     <string name="about_restore">Restore settings from the backup</string>
@@ -238,8 +240,8 @@
     <string name="apps_manage_hidden">Hidden apps</string>
     <string name="apps_manage_hidden_title">Hidden apps</string>
     <string name="apps_hidden_none">No apps found</string>
-    <string name="apps_reset">Reset app settings</string>
-    <string name="apps_reset_title">Reset app settings?</string>
+    <string name="apps_reset">Reset hidden app settings</string>
+    <string name="apps_reset_title">Reset hidden app settings?</string>
     <string name="apps_reset_message">Every hidden app is shown again and "Show hidden apps" goes back to Off.</string>
     <string name="apps_reset_done">App settings reset</string>
     <string name="profile_section">User</string>
@@ -248,4 +250,21 @@
     <string name="profile_avatar_title">Avatar</string>
     <string name="profile_avatar_none">No avatar</string>
     <string name="profile_name_hint">Name</string>
+    <string name="screensaver_kind_aerial_hint">The \"Live wallpapers (Apple TV)\" screensaver needs an internet connection to stream the video from Apple\'s servers.</string>
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_desc">How long Home may sit idle before the screensaver starts.</string>
+    <string name="screensaver_use">Use screensaver</string>
+    <string name="settings_section_grid">App grid settings</string>
+    <string name="tile_radius_label">Tile corner radius</string>
+    <string name="tile_radius_desc">How round the corners of the app tiles are, from 0 (square) to 50 px.</string>
+    <string name="settings_section_theme">Main theme</string>
+    <string name="color_scheme_label">Color scheme</string>
+    <string name="color_scheme_light">Light</string>
+    <string name="color_scheme_dark">Dark</string>
+    <string name="color_scheme_mixed">Mixed</string>
+    <string name="scheme_advanced">Additional settings</string>
+    <string name="scheme_part_menu">Menu scheme</string>
+    <string name="scheme_part_dock">App dock scheme</string>
+    <string name="scheme_part_grid">App grid and recent apps scheme</string>
+    <string name="scheme_part_sub">Submenu scheme</string>
 </resources>

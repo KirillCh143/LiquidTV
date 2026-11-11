@@ -61,7 +61,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
         this.lightGlass = lightGlass;
         this.evenPadding = evenPadding;
         this.maskListener = maskListener;
-        band.setColor(translucent ? 0x8C121014 : (Math.round(opacity * 2.55f) << 24) | 0x141416);
+        band.setColor(translucent ? 0x8C121014 : (Math.round(opacity * 2.55f) << 24) | (Config.dark(Config.PART_DOCK) ? 0x000000 : 0x141416));
     }
 
     /** Concentric corners: the band's radius is the tiles' radius plus the band's padding around them. */

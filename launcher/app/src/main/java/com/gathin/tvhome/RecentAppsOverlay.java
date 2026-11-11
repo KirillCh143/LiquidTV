@@ -183,7 +183,7 @@ final class RecentAppsOverlay {
             layer.addView(picture, new FrameLayout.LayoutParams(-1, -1));
         }
         View wash = new View(c);
-        wash.setBackgroundColor(0xFFFFFFFF);
+        wash.setBackgroundColor(Config.dark(Config.PART_GRID) ? 0xFF000000 : 0xFFFFFFFF);
         wash.setAlpha(SCRIM_ALPHA);
         layer.addView(wash, new FrameLayout.LayoutParams(-1, -1));
 

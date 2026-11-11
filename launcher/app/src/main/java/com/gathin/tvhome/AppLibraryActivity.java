@@ -141,6 +141,7 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         wallpaperSharp = findViewById(R.id.wallpaperSharp);
         wallpaperBlur = findViewById(R.id.wallpaperBlur);
         scrim = findViewById(R.id.scrim);
+        if (Config.dark(Config.PART_GRID)) scrim.setBackgroundColor(0xFF000000);   // dark colour scheme: a black wash, not white
         dockGlass = findViewById(R.id.dockGlass);
         loadWallpaper();
 
@@ -489,10 +490,11 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         // the bare wallpaper, nothing else washes it, but here the wash is what makes the rest of the screen
         // read as "this same backdrop, softened"; without it dockGlass's own sharper, more saturated blur
         // looked like a hole cut through the washed-out background around it.
+        float washLift = Config.dark(Config.PART_GRID) ? 0f : 255 * SCRIM_ALPHA;   // dark colour scheme: washed toward black
         ColorMatrix whiteWash = new ColorMatrix(new float[]{
-                1 - SCRIM_ALPHA, 0, 0, 0, 255 * SCRIM_ALPHA,
-                0, 1 - SCRIM_ALPHA, 0, 0, 255 * SCRIM_ALPHA,
-                0, 0, 1 - SCRIM_ALPHA, 0, 255 * SCRIM_ALPHA,
+                1 - SCRIM_ALPHA, 0, 0, 0, washLift,
+                0, 1 - SCRIM_ALPHA, 0, 0, washLift,
+                0, 0, 1 - SCRIM_ALPHA, 0, washLift,
                 0, 0, 0, 1, 0});
         vibrancyMatrix.postConcat(whiteWash);
         RenderEffect vibrancyEffect = RenderEffect.createColorFilterEffect(new ColorMatrixColorFilter(vibrancyMatrix));

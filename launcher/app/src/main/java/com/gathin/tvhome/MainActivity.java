@@ -129,7 +129,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean instantDock;
     /** Idle time on Home before ClockActivity; 0 is off (config.xml, home_idle_clock_minutes). */
     private long idleClockMs;
-    private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
+    /** Idle Home starts the chosen screensaver (Launcher settings, "Screensaver type": the clock or the live wallpapers),
+     *  after the "Sleep timer" minutes. */
+    private final Runnable showIdleClock = () -> startActivity(new Intent(this, AerialActivity.class));
     private String liveTvAction;
     private String liveTvInputId;
     /** The same opt-in menu is available from either hold-OK or the remote's Menu key. */
@@ -400,7 +402,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
         liveTvPkg = cfg.liveTvPackage;
-        idleClockMs = cfg.homeIdleClockMinutes * MINUTE_MS;
+        // Local patch: the Sleep timer in Launcher settings (5 minutes until set) is how long Home may sit idle before the
+        // screensaver starts; it replaces config.xml's home_idle_clock_minutes.
+        SharedPreferences sleepChoices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        // "Use screensaver" off: Home never starts it by itself, only the Settings grid's Screensaver tile does.
+        idleClockMs = sleepChoices.getBoolean("screensaver_enabled", true)
+                ? sleepChoices.getInt("sleep_timer_minutes", 5) * MINUTE_MS : 0;
         bootToLiveTv = cfg.bootToLiveTv;
         openOnStartChoice = cfg.openOnStartChoice;
         liveTvAction = cfg.liveTvAction;
@@ -813,10 +820,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // dock_backdrop "liquid" with dock_glass on gets the dock's own white wash too (pill_bg_liquid), so the
         // pills read as the same glass as the dock, not just its blur/liquid shader without the tint on top.
         if (wallpaperPlayer.hasDockBlur()) {
-            int pillBg = Config.dockLightGlass(cfg) ? R.drawable.pill_bg_liquid : R.drawable.pill_bg_glass;
+            // The dock's own wash at its own "Dock panel opacity" (Launcher settings), over the pills' glass layer.
             ViewGroup topButtonsRow = findViewById(R.id.topButtons);
             for (int i = 0; i < topButtonsRow.getChildCount(); i++) {
-                topButtonsRow.getChildAt(i).setBackgroundResource(pillBg);
+                topButtonsRow.getChildAt(i).setBackground(washedBackground(21 * density, Config.dockLightGlass(cfg, Config.dark(Config.PART_SUB)), cfg.dockOpacity,
+                        true));
             }
         }
 
@@ -1191,7 +1199,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
-    /** Any key on Home restarts the countdown to the idle clock. */
+    /** Any key on Home restarts the countdown to the screensaver. */
     @Override
     public void onUserInteraction() {
         super.onUserInteraction();
@@ -3315,7 +3323,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         TextView text = anchor instanceof TextView ? (TextView) anchor : null;
         android.content.res.ColorStateList colors = text != null ? text.getTextColors() : null;
         android.content.res.ColorStateList tint = text != null ? text.getCompoundDrawableTintList() : null;
-        anchor.setBackgroundResource(R.drawable.pill_bg_rest);
+        if (wallpaperPlayer.hasDockBlur()) {
+            // The pill keeps the dock's wash while the grid is open (state-free, so no focus white behind it).
+            Config wash = Config.load(this);
+            anchor.setBackground(restWash(21 * density, Config.dockLightGlass(wash, Config.dark(Config.PART_SUB)), wash.dockOpacity));
+        } else {
+            anchor.setBackgroundResource(R.drawable.pill_bg_rest);
+        }
         if (text != null) {
             text.setTextColor(Color.WHITE);
             text.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
@@ -3403,6 +3417,52 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
+    /**
+     * Local patch: a pill's or grid tile's background with the dock band's own wash at rest, so "Dock panel opacity" in
+     * Launcher settings moves them together with the dock. With dock_glass on the "liquid" backdrop that is the dock's
+     * white gradient (32% fading to 18%), scaled by the opacity; otherwise the dock's dark band colour at the opacity.
+     * Focused is the plain white every pill gives, and (pills only) the reorder mode's blue.
+     */
+    private Drawable washedBackground(float radiusPx, boolean lightGlass, int opacityPercent, boolean reorderState) {
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        android.graphics.drawable.GradientDrawable focused = new android.graphics.drawable.GradientDrawable();
+        focused.setColor(0xF5FFFFFF);
+        focused.setCornerRadius(radiusPx);
+        states.addState(new int[]{android.R.attr.state_focused}, focused);
+        if (reorderState) {
+            android.graphics.drawable.GradientDrawable reorder = new android.graphics.drawable.GradientDrawable();
+            reorder.setColor(0x596EC1FF);
+            reorder.setStroke(Math.round(1.5f * density), 0xFF6EC1FF);
+            reorder.setCornerRadius(radiusPx);
+            states.addState(new int[]{android.R.attr.state_activated}, reorder);
+        }
+        states.addState(new int[]{}, restWash(radiusPx, lightGlass, opacityPercent));
+        return states;
+    }
+
+    /** The dock band's wash alone (no states): its white gradient or dark colour at the dock opacity. */
+    private static android.graphics.drawable.GradientDrawable restWash(float radiusPx, boolean lightGlass, int opacityPercent) {
+        android.graphics.drawable.GradientDrawable rest = new android.graphics.drawable.GradientDrawable();
+        float k = Math.max(0, Math.min(100, opacityPercent)) / 100f;
+        if (lightGlass) {
+            rest.setOrientation(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM);
+            rest.setColors(new int[]{(Math.round(0x52 * k) << 24) | 0xFFFFFF, (Math.round(0x2E * k) << 24) | 0xFFFFFF});
+        } else {
+            rest.setColor((Math.round(255 * k) << 24) | (Config.dark(Config.PART_SUB) ? 0x000000 : 0x141416));
+        }
+        rest.setCornerRadius(radiusPx);
+        return rest;
+    }
+
+    /** A grid tile's wash: drawn over the tile (so over its own glass layer, which would hide a background), and gone
+     *  while the tile is focused, when it is plain white. */
+    private Drawable tileWash(float radiusPx, boolean lightGlass, int opacityPercent) {
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused}, new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+        states.addState(new int[]{}, restWash(radiusPx, lightGlass, opacityPercent));
+        return states;
+    }
+
     /** One tile in popup_settings_grid: inflates layoutRes (item_settings_tile for the big Reboot tile,
      *  item_settings_tile_row — icon left, label right — for every other one) into its slot and wires the
      *  click (closing the popup first), leaving the tile itself for gridKey to wire its own D-pad neighbours.
@@ -3415,6 +3475,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View tile = getLayoutInflater().inflate(layoutRes, slot, false);
         ((ImageView) tile.findViewById(R.id.icon)).setImageResource(icon);
         ((TextView) tile.findViewById(R.id.title)).setText(title);
+        if (wallpaperPlayer.hasDockBlur()) {
+            Config tileConfig = Config.load(this);
+            // A layer between the glass and the content, so the icon and label stay on top of the wash.
+            tile.findViewById(R.id.wash).setBackground(tileWash(42f, Config.dockLightGlass(tileConfig, Config.dark(Config.PART_SUB)), tileConfig.dockOpacity));
+        }
         tile.setOnClickListener(v -> {
             popup.dismiss();
             action.run();
