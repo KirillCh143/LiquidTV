@@ -37,6 +37,8 @@ final class SvgWallpaper {
     }
 
     private final Map<String, Node> ids = new HashMap<>();
+    /** The blur radius is in output pixels, so it follows the output size (it was tuned on a 960 px wide render). */
+    private float blurFactor = 1f;
 
     private SvgWallpaper() {}
 
@@ -69,6 +71,7 @@ final class SvgWallpaper {
         Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         canvas.drawColor(background != null ? background : pageColor(root.get("style")));
+        r.blurFactor = w / 960f;
         float scale = Math.max(w / vw, h / vh);
         canvas.translate((w - vw * scale) / 2f, (h - vh * scale) / 2f);
         canvas.scale(scale, scale);
@@ -136,7 +139,8 @@ final class SvgWallpaper {
         if (fill == null || fill.equals("none")) return null;
         float alpha = n.get("opacity") == null ? 1f : Float.parseFloat(n.get("opacity"));
         if (n.get("fill-opacity") != null) alpha *= Float.parseFloat(n.get("fill-opacity"));
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        // Dither: a gradient drawn into 8 bits per channel without it shows as bands.
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
         if (fill.startsWith("url(")) {
             Node g = ids.get(fill.replaceAll("url\\(['\"]?#|['\"]?\\)", ""));
             if (g == null || !g.name.equals("linearGradient")) return null;
@@ -164,7 +168,7 @@ final class SvgWallpaper {
             Node blur = f == null || f.kids.isEmpty() ? null : f.kids.get(0);
             float sigma = blur == null ? 0 : num(blur.get("stdDeviation"));
             // SVG's feGaussianBlur sigma to BlurMaskFilter's radius (Skia: sigma = 0.57735 * radius + 0.5).
-            if (sigma > 0) paint.setMaskFilter(new BlurMaskFilter((sigma - 0.5f) / 0.57735f, BlurMaskFilter.Blur.NORMAL));
+            if (sigma > 0) paint.setMaskFilter(new BlurMaskFilter((sigma - 0.5f) / 0.57735f * blurFactor, BlurMaskFilter.Blur.NORMAL));
         }
         return paint;
     }

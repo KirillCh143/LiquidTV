@@ -36,7 +36,7 @@ final class WallpaperThumbs {
     /** The cache key: a downloaded picture by path, size and date; a built-in one by its id and render version. */
     static String key(Context context, File file, String choice, int w, int h) {
         String base = file != null ? file.getAbsolutePath() + "|" + file.length() + "|" + file.lastModified()
-                : "builtin|" + choice + "|v2";
+                : "builtin|" + choice + "|v3";
         return base + "|" + w + "x" + h;
     }
 

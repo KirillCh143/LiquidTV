@@ -13,9 +13,9 @@ import java.io.InputStream;
  *  downloaded or picked, and again when the wallpaper settings are reset. */
 final class DefaultWallpaper {
     static final String CHOICE = "default";
-    private static final String FILE = "default-wallpaper-v2.jpg";
-    /** Rendered at half of 1080p: the picture is soft gradients, so the screen scales it up without any loss. */
-    private static final int W = 960, H = 540;
+    private static final String FILE = "default-wallpaper-v3.png";
+    /** Full HD, lossless (PNG): the pictures are soft gradients, which JPEG and half-size renders show as bands. */
+    private static final int W = 1920, H = 1080;
 
     /** More built-in pictures, SVGs in assets/wallpapers/, drawn once into a JPEG like the first one: {choice id, English name}. */
     static final String[][] EXTRA = {{"bauhaus", "Bauhaus"}, {"dusk", "Dusk"}, {"lagoon", "Lagoon"},
@@ -34,7 +34,7 @@ final class DefaultWallpaper {
     static File fileFor(Context ctx, String choice) {
         for (String[] e : EXTRA) {
             if (!e[0].equals(choice)) continue;
-            File file = new File(ctx.getFilesDir(), "builtin-" + e[0] + "-v2.jpg");
+            File file = new File(ctx.getFilesDir(), "builtin-" + e[0] + "-v3.png");
             if (file.isFile() && file.length() > 0) return file;
             try (InputStream in = ctx.getAssets().open("wallpapers/" + e[0] + ".svg")) {
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -43,7 +43,7 @@ final class DefaultWallpaper {
                 // Full HD: these have sharp edges, which a half-size picture would blur.
                 Bitmap bitmap = SvgWallpaper.render(new String(bytes.toByteArray(), "UTF-8"), 1920, 1080, null);
                 try (FileOutputStream out = new FileOutputStream(file)) {
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out);
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);   // lossless: a JPEG bands and blocks soft gradients
                 }
                 bitmap.recycle();
                 return file;
@@ -65,7 +65,7 @@ final class DefaultWallpaper {
             for (int n; (n = in.read(buf)) > 0; ) bytes.write(buf, 0, n);
             Bitmap bitmap = SvgWallpaper.render(new String(bytes.toByteArray(), "UTF-8"), W, H, 0xFF050F2C);
             try (FileOutputStream out = new FileOutputStream(file)) {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out);
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);   // lossless: a JPEG bands and blocks soft gradients
             }
             bitmap.recycle();
             return file;

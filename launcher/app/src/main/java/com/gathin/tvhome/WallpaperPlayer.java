@@ -518,7 +518,10 @@ final class WallpaperPlayer {
                 options.inDensity = scale[0];
                 options.inTargetDensity = scale[1];
             }
-            options.inPreferredConfig = bitmapConfig;
+            // The built-in gradients are decoded in full colour whatever wallpaper_true_color says: 16 bits turn their
+            // soft transitions into visible bands; photographs hide that, so they keep the lighter format.
+            boolean gradient = file.getName().startsWith("builtin-") || file.getName().startsWith("default-wallpaper");
+            options.inPreferredConfig = gradient ? Bitmap.Config.ARGB_8888 : bitmapConfig;
             options.inMutable = dimColor != 0;
             Bitmap decoded = BitmapFactory.decodeFile(file.getPath(), options);
             if (decoded == null) return null;
