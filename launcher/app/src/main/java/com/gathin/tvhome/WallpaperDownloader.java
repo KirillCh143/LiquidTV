@@ -78,6 +78,9 @@ final class WallpaperDownloader {
                 final int a = added, s = skipped;
                 ui.post(() -> { if (!cancel.get()) listener.onDone(a, s); });
             } catch (Exception e) {
+                // The screen only says "no connection"; the real cause (DNS, TLS, an HTTP status, a folder that cannot
+                // be written) goes to the log, tag WallpaperDownloader.
+                android.util.Log.w("WallpaperDownloader", "download failed: " + e, e);
                 ui.post(() -> { if (!cancel.get()) listener.onError(); });
             }
         }, "wallpaper-download").start();
