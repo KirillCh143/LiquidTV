@@ -8,11 +8,31 @@ android {
 
     defaultConfig {
         // Opt-in identity for firmware with a package-name HOME allowlist; see docs/devices/xiaomi-mitv-aetp0-dofus.md.
-        applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.gathin.tvhome')
+        applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.liquidos.tv')
         minSdk 26
         targetSdk 34
         versionCode 10
         versionName '0.9.4 Beta'
+    }
+
+    // Public releases: `./gradlew assembleRelease -PreleaseSigning` signs with the release key described in
+    // ~/.android/liquidtv-release.properties (storeFile, storePassword, keyAlias, keyPassword), or in the file named by
+    // -PreleaseKeyProperties. The key never goes in the repository. Without the flag, builds are signed with the
+    // debug key as before, so a local build still installs over the one already on your TV.
+    signingConfigs {
+        if (project.hasProperty('releaseSigning')) {
+            release {
+                def props = new Properties()
+                def file = new File(providers.gradleProperty('releaseKeyProperties')
+                        .getOrElse(System.getProperty('user.home') + '/.android/liquidtv-release.properties'))
+                if (!file.exists()) throw new GradleException('Release signing: ' + file + ' not found')
+                file.withInputStream { props.load(it) }
+                storeFile new File(props.getProperty('storeFile'))
+                storePassword props.getProperty('storePassword')
+                keyAlias props.getProperty('keyAlias')
+                keyPassword props.getProperty('keyPassword')
+            }
+        }
     }
 
     buildTypes {
@@ -21,8 +41,8 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Sideloaded over ADB, never published: sign with the debug key so it installs over a debug build.
-            signingConfig signingConfigs.debug
+            // Debug key by default (installs over a local debug build); the release key with -PreleaseSigning.
+            signingConfig project.hasProperty('releaseSigning') ? signingConfigs.release : signingConfigs.debug
         }
     }
 
