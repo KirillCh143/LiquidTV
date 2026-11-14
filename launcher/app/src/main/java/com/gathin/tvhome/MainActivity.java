@@ -1039,6 +1039,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onResume() {
         super.onResume();
         fitMenuButtonWidth();   // the system's 12/24-hour setting may have changed while away
+        if (grid != null && adapter != null) grid.post(() -> adapter.playReturn(grid));   // the launched tile settles in
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();

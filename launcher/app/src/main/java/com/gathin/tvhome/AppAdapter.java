@@ -509,7 +509,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.label.setText(e.label);
             h.label.setVisibility(uniformTiles ? View.GONE : View.VISIBLE);
         }
-        h.card.setOnClickListener(v -> launch(e));
+        h.card.setOnClickListener(v -> launch(e, v));
         h.card.setOnLongClickListener(v -> {
             if (tileMenu) {
                 int pos = h.getBindingAdapterPosition();
@@ -527,7 +527,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
-    private void launch(Entry e) {
+    private void launch(Entry e, View from) {
         if (e.kind == Entry.HOME_SETTINGS) {
             ctx.startActivity(new Intent(ctx, HomeSettingsActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -547,10 +547,42 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (ctx.getPackageManager().resolveActivity(byAction, 0) != null) i = byAction;
         }
         try {
-            ctx.startActivity(i);
+            // tvOS-style: the app's window grows out of the tile (the system plays it; needs no permission).
+            android.os.Bundle options = null;
+            if (animations && !reducedMotion && from != null && from.getWidth() > 0) {
+                options = android.app.ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.getWidth(), from.getHeight()).toBundle();
+                returnPkg = e.pkg;
+            }
+            ctx.startActivity(i, options);
             if (cinematic) LastOpened.record(ctx, e.pkg);
         } catch (Exception ex) {
             Toast.makeText(ctx, ctx.getString(R.string.cant_open, e.label), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** The package whose tile was launched last (with the grow-out animation), for {@link #playReturn}. */
+    private String returnPkg;
+
+    /** Back on Home after an app: that tile's picture settles in, a short ease from a little smaller. The system
+     *  cannot shrink another app's window back into a tile, so this is the return half of the effect. */
+    void playReturn(RecyclerView list) {
+        String pkg = returnPkg;
+        returnPkg = null;
+        if (pkg == null || !animations || reducedMotion) return;
+        for (int p = 0; p < items.size(); p++) {
+            if (!items.get(p).pkg.equals(pkg)) continue;
+            RecyclerView.ViewHolder vh = list.findViewHolderForAdapterPosition(p);
+            if (!(vh instanceof Holder)) return;
+            Holder h = (Holder) vh;
+            for (View part : new View[]{h.icon, h.banner, h.label}) {
+                if (part.getVisibility() != View.VISIBLE) continue;
+                part.setScaleX(0.84f);
+                part.setScaleY(0.84f);
+                part.setAlpha(0.55f);
+                part.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(340)
+                        .setInterpolator(new DecelerateInterpolator(1.6f)).start();
+            }
+            return;
         }
     }
 
