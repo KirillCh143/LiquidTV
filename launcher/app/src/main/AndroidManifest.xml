@@ -211,7 +211,7 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Screensaver: pick it in Settings, or `settings put secure screensaver_components
-             com.gathin.tvhome/.ClockDream` over adb. -->
+             com.liquidos.tv/com.gathin.tvhome.ClockDream` over adb. -->
         <service
             android:name=".ClockDream"
             android:label="@string/dream_name"
@@ -224,7 +224,7 @@
         </service>
 
         <!-- Streaming screensaver (Apple TV aerial videos, like Lampa's): pick it in Settings, or `settings put secure
-             screensaver_components com.gathin.tvhome/.AerialDream` over adb. -->
+             screensaver_components com.liquidos.tv/com.gathin.tvhome.AerialDream` over adb. -->
         <service
             android:name=".AerialDream"
             android:label="@string/dream_aerial_name"
