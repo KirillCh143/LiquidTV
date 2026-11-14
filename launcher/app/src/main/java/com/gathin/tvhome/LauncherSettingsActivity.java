@@ -55,7 +55,6 @@ public final class LauncherSettingsActivity extends Activity {
     }
     private TextView wallpaperChoice;
     private TextView animationsChoice;
-    private TextView followThemeChoice;
     private TextView openOnStartChoice;
     /** Local patch, not upstream: whether AppLibraryActivity's catalogue shows apps hidden with its own
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
@@ -112,11 +111,7 @@ public final class LauncherSettingsActivity extends Activity {
                     changed();
                 }, i -> String.valueOf(MIN_COLUMNS + i)));
         tileOutlineChoice = findViewById(R.id.tileOutlineChoice);
-        tileOutlineChoice.setOnClickListener(v -> {
-            choices.edit().putBoolean(Config.TILE_OUTLINE_KEY, !Config.tileOutline(this)).apply();
-            changed();
-            refresh();
-        });
+        tileOutlineChoice.setOnClickListener(v -> openTileOutlineChoices());
         tileRadiusChoice = findViewById(R.id.tileRadiusChoice);
         tileRadiusChoice.setOnClickListener(v -> openSub(tileRadiusChoice, R.string.tile_radius_label, R.string.tile_radius_desc, 0,
                 Config.MAX_TILE_RADIUS + 1, Config.tileRadius(this), i -> {
@@ -186,8 +181,8 @@ public final class LauncherSettingsActivity extends Activity {
         slideshowChoice.setOnClickListener(v -> openSlideshowChoices());
         slideshowYes = findViewById(R.id.slideshowYes);
         slideshowNo = findViewById(R.id.slideshowNo);
-        slideshowYes.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_CLOCK); else if (twoChoiceMode == 2) setScreensaverUse(true); else if (twoChoiceMode == 3) setColorScheme(Config.SCHEME_LIGHT); else setSlideshow(true); });
-        slideshowNo.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_AERIAL); else if (twoChoiceMode == 2) setScreensaverUse(false); else if (twoChoiceMode == 3) setColorScheme(Config.SCHEME_DARK); else setSlideshow(false); });
+        slideshowYes.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_CLOCK); else if (twoChoiceMode == 2) setScreensaverUse(true); else if (twoChoiceMode == 3) setColorScheme(Config.SCHEME_LIGHT); else if (twoChoiceMode == 4) setTileOutline(true); else setSlideshow(true); });
+        slideshowNo.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_AERIAL); else if (twoChoiceMode == 2) setScreensaverUse(false); else if (twoChoiceMode == 3) setColorScheme(Config.SCHEME_DARK); else if (twoChoiceMode == 4) setTileOutline(false); else setSlideshow(false); });
         screensaverUseChoice = findViewById(R.id.screensaverUseChoice);
         screensaverUseChoice.setOnClickListener(v -> openScreensaverUseChoices());
         screensaverChoice = findViewById(R.id.screensaverChoice);
@@ -219,6 +214,7 @@ public final class LauncherSettingsActivity extends Activity {
         openOnStartChoice = findViewById(R.id.openOnStartChoice);
         if (config.openOnStartChoice) {
             openOnStartChoice.setVisibility(View.VISIBLE);
+            findViewById(R.id.sectionHome).setVisibility(View.VISIBLE);   // its section title only with its row
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
         hiddenAppsChoice = findViewById(R.id.hiddenAppsChoice);
@@ -241,22 +237,6 @@ public final class LauncherSettingsActivity extends Activity {
         libraryShowHiddenChoice.setOnClickListener(v -> {
             libraryShowHidden = !libraryShowHidden;
             choices.edit().putBoolean("library_show_hidden", libraryShowHidden).apply();
-            refresh();
-        });
-        followThemeChoice = findViewById(R.id.followThemeChoice);
-        followThemeChoice.setOnClickListener(v -> {
-            if (!hasOnTvChoices()) return;
-            choices.edit().remove("columns").remove("animations")
-                    .remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(Config.DOCK_BACKDROP_KEY).remove(Config.DOCK_BLUR_KEY).remove(Config.TILE_OUTLINE_KEY)
-                    .remove(OpenOnStart.KEY).commit();
-            Config current = Config.load(this);
-            columns = current.columns;
-            dockOpacity = current.dockOpacity;
-            dockBlur = Config.dockBlur(this);
-            dockBackdrop = current.dockBackdrop;
-            animations = current.animations;
-            changed();
             refresh();
         });
         findViewById(R.id.defaultHomeChoice).setOnClickListener(v -> {
@@ -769,7 +749,15 @@ public final class LauncherSettingsActivity extends Activity {
         refresh();
         findViewById(R.id.subBack).setNextFocusDownId(backdropChoices[0].getId());
         backdropChoices[0].setNextFocusUpId(R.id.subBack);
-        backdropChoices[backdropChoices.length - 1].setNextFocusDownId(backdropChoices[backdropChoices.length - 1].getId());
+        // Down goes to the next row that can take focus, and on the last one stays there (a row the Android
+        // version cannot show is not focusable, so a fixed id on the last row would drop the focus).
+        for (int i = 0; i < backdropChoices.length; i++) {
+            int below = backdropChoices[i].getId();
+            for (int k = i + 1; k < backdropChoices.length; k++) {
+                if (backdropChoices[k].isFocusable()) { below = backdropChoices[k].getId(); break; }
+            }
+            backdropChoices[i].setNextFocusDownId(below);
+        }
         for (int i = 0; i < BACKDROPS.length; i++) {
             if (BACKDROPS[i].equals(dockBackdrop)) { backdropChoices[i].requestFocus(); navLock = false; return; }
         }
@@ -803,6 +791,10 @@ public final class LauncherSettingsActivity extends Activity {
     private static final String REOPEN_SCHEME = "reopen_scheme";
     private static final String REOPEN_BACKDROP = "reopen_backdrop";
 
+    private boolean mode0IsMixed() {
+        return Config.colorScheme(this) == Config.SCHEME_MIXED;
+    }
+
     /** "Color scheme": Light / Dark, the same two-tile sub-page as Slideshow. */
     private void openColorSchemeChoices() {
         navLock = true;
@@ -831,11 +823,45 @@ public final class LauncherSettingsActivity extends Activity {
         slideshowNo.setNextFocusDownId(R.id.slideshowThird);
         View third = findViewById(R.id.slideshowThird);
         third.setNextFocusUpId(R.id.slideshowNo);
-        third.setNextFocusDownId(R.id.schemeMenuRow);
+        third.setNextFocusDownId(mode0IsMixed() ? R.id.schemeMenuRow : R.id.slideshowThird);
         findViewById(R.id.schemeMenuRow).setNextFocusUpId(R.id.slideshowThird);
         findViewById(R.id.schemeSubRow).setNextFocusDownId(R.id.schemeSubRow);
         int mode = Config.colorScheme(this);
         (mode == Config.SCHEME_DARK ? slideshowNo : mode == Config.SCHEME_MIXED ? findViewById(R.id.slideshowThird) : slideshowYes).requestFocus();
+        navLock = false;
+    }
+
+    private void setTileOutline(boolean on) {
+        choices.edit().putBoolean(Config.TILE_OUTLINE_KEY, on).apply();
+        changed();
+        refresh();
+    }
+
+    /** "App outline": Yes / No, the same two-tile sub-page as "Use screensaver". */
+    private void openTileOutlineChoices() {
+        navLock = true;
+        subRow = tileOutlineChoice;
+        subOpen = true;
+        findViewById(R.id.pagePersonal).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        twoChoiceMode = 4;
+        findViewById(R.id.slideshowHint).setVisibility(View.GONE);
+        findViewById(R.id.slideshowThird).setVisibility(View.GONE);
+        slideshowYes.setText(R.string.yes);
+        slideshowNo.setText(R.string.no);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.tile_outline_label);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.tile_outline_label);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        (Config.tileOutline(this) ? slideshowYes : slideshowNo).requestFocus();
         navLock = false;
     }
 
@@ -1329,7 +1355,7 @@ public final class LauncherSettingsActivity extends Activity {
                         : DefaultWallpaper.isChoice(wallpaperCurrent) ? localName(builtinName(wallpaperCurrent))
                         : wallpaperCurrent != null ? localName(wallpaperLabel(wallpaperCurrent))
                         : getString(R.string.wallpaper_theme_default)));
-        boolean firstChosen = twoChoiceMode == 1 ? screensaverIsClock() : twoChoiceMode == 2 ? screensaverUsed() : twoChoiceMode == 3 ? Config.colorScheme(this) == Config.SCHEME_LIGHT : slideshow;
+        boolean firstChosen = twoChoiceMode == 1 ? screensaverIsClock() : twoChoiceMode == 2 ? screensaverUsed() : twoChoiceMode == 3 ? Config.colorScheme(this) == Config.SCHEME_LIGHT : twoChoiceMode == 4 ? Config.tileOutline(this) : slideshow;
         boolean schemePage = twoChoiceMode == 3;
         int schemeMode = Config.colorScheme(this);
         slideshowYes.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
@@ -1341,6 +1367,9 @@ public final class LauncherSettingsActivity extends Activity {
                 schemeMode == Config.SCHEME_MIXED ? R.drawable.ic_settings_check : 0, 0);
         // "Additional settings": only on the colour scheme's page, and only for the mixed scheme.
         findViewById(R.id.schemeAdvanced).setVisibility(schemePage && schemeMode == Config.SCHEME_MIXED ? View.VISIBLE : View.GONE);
+        // The extra rows are gone unless Mixed is chosen: Down from Mixed must then stay on Mixed, not leave focus nowhere.
+        if (schemePage) findViewById(R.id.slideshowThird).setNextFocusDownId(
+                schemeMode == Config.SCHEME_MIXED ? R.id.schemeMenuRow : R.id.slideshowThird);
         int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow};
         int[] partNames = {R.string.scheme_part_menu, R.string.scheme_part_dock, R.string.scheme_part_grid, R.string.scheme_part_sub};
         for (int i = 0; i < partRows.length; i++) {
@@ -1365,15 +1394,6 @@ public final class LauncherSettingsActivity extends Activity {
         hiddenAppsChoice.setText(getString(R.string.apps_manage_hidden) + ": " + LibraryApps.loadHidden(this).size());
         libraryShowHiddenChoice.setText(getString(R.string.library_show_hidden_state,
                 getString(libraryShowHidden ? R.string.on : R.string.off)));
-        followThemeChoice.setSelected(!hasOnTvChoices());
-    }
-
-    private boolean hasOnTvChoices() {
-        return choices.contains("columns")
-                || choices.contains("animations")
-                || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(Config.DOCK_BACKDROP_KEY) || choices.contains(Config.DOCK_BLUR_KEY) || choices.contains(Config.TILE_OUTLINE_KEY)
-                || choices.contains(OpenOnStart.KEY);
     }
 
     private void open(Intent intent) {

@@ -5,4 +5,10 @@
     <attr name="settingsNavRest" format="color" />
     <attr name="settingsRowRest" format="color" />
     <attr name="settingsNavSelected" format="color" />
+    <!-- Section titles and the grey notes under rows: dark on the light scheme, light on the dark one. -->
+    <attr name="settingsSectionText" format="color" />
+    <attr name="settingsTitleText" format="color" />
+    <!-- Sidebar entries that are neither focused nor the open page. -->
+    <attr name="settingsNavText" format="color" />
+    <attr name="settingsHintText" format="color" />
 </resources>

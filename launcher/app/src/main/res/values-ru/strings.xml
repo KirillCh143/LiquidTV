@@ -79,7 +79,7 @@
     <string name="dock_opacity_label">Непрозрачность панели дока</string>
     <string name="dock_blur_label">Интенсивность размытия</string>
     <string name="tile_outline_label">Обводка приложений</string>
-    <string name="dock_backdrop_label">Подложка дока</string>
+    <string name="dock_backdrop_label">Тема</string>
     <string name="dock_backdrop_color">Монохром</string>
     <string name="dock_backdrop_blur">Матовый лёд</string>
     <string name="dock_backdrop_blur_note">(Android 12 и выше)</string>
@@ -99,8 +99,6 @@
     <string name="animations_state">Анимация: %1$s</string>
     <string name="open_on_start_label">Открывать при запуске</string>
     <string name="open_on_start_state">Открывать при запуске: %1$s</string>
-    <string name="follow_theme">Следовать теме (сбросить выбор)</string>
-    <string name="follow_theme_hint">Использовать параметры расположения и анимации текущей темы или встроенные. Установка или сброс темы также удаляет выбор на телевизоре.</string>
     <string name="tv_settings">Системные настройки ТВ</string>
     <string name="quick_picture">Экран</string>
     <string name="quick_network">Сеть</string>

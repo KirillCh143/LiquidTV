@@ -39,8 +39,6 @@
     <string name="animations_state">Animaties: %1$s</string>
     <string name="open_on_start_label">Openen bij opstarten</string>
     <string name="open_on_start_state">Openen bij opstarten: %1$s</string>
-    <string name="follow_theme">Thema volgen (keuzes op de tv wissen)</string>
-    <string name="follow_theme_hint">Gebruikt de indeling en beweging van het huidige thema of de ingebouwde instellingen. Een thema pushen of resetten wist ook je keuzes op de tv.</string>
     <string name="tv_settings">Systeeminstellingen van de tv</string>
     <string name="quick_picture">Beeld</string>
     <string name="quick_network">Netwerk</string>

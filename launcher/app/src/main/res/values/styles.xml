@@ -8,6 +8,10 @@
         <item name="settingsNavRest">#00000000</item>
         <item name="settingsRowRest">#1A000000</item>
         <item name="settingsNavSelected">#24000000</item>
+        <item name="settingsSectionText">#B3000000</item>
+        <item name="settingsTitleText">#BF000000</item>
+        <item name="settingsNavText">#BF000000</item>
+        <item name="settingsHintText">#A6000000</item>
     </style>
     <!-- The dark colour scheme: black screen, white-washed inactive rows. Applied over the theme by LauncherSettingsActivity. -->
     <!-- Monochrome backdrop: the inactive rows' backing is darker. Applied over the theme (and over SettingsDark). -->
@@ -24,6 +28,10 @@
         <item name="settingsScrim">#1A000000</item>
         <item name="settingsRowRest">#33FFFFFF</item>
         <item name="settingsNavSelected">#33FFFFFF</item>
+        <item name="settingsSectionText">#99FFFFFF</item>
+        <item name="settingsTitleText">#FFFFFFFF</item>
+        <item name="settingsNavText">#FFFFFFFF</item>
+        <item name="settingsHintText">#80FFFFFF</item>
     </style>
 
     <!-- Frosted pill, tvOS style. -->
@@ -160,7 +168,7 @@
         <item name="android:layout_marginTop">14dp</item>
         <item name="android:layout_marginBottom">6dp</item>
         <item name="android:paddingStart">4.5dp</item>
-        <item name="android:textColor">#99FFFFFF</item>
+        <item name="android:textColor">?attr/settingsSectionText</item>
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
@@ -181,7 +189,7 @@
         <item name="android:layout_marginTop">4dp</item>
         <item name="android:paddingStart">15dp</item>
         <item name="android:paddingEnd">15dp</item>
-        <item name="android:textColor">#80FFFFFF</item>
+        <item name="android:textColor">?attr/settingsHintText</item>
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@string/font_regular</item>
     </style>

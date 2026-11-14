@@ -60,7 +60,7 @@
     <string name="columns_label">Apps per row</string>
     <string name="dock_opacity_label">Dock band opacity</string>
     <string name="dock_blur_label">Blur intensity</string>
-    <string name="dock_backdrop_label">Dock backdrop</string>
+    <string name="dock_backdrop_label">Theme</string>
     <string name="dock_backdrop_color">Color</string>
     <string name="dock_backdrop_blur">Blur</string>
     <string name="dock_backdrop_blur_note">(Android 12 and up)</string>
@@ -80,8 +80,6 @@
     <string name="animations_state">Animations: %1$s</string>
     <string name="open_on_start_label">Open on start</string>
     <string name="open_on_start_state">Open on start: %1$s</string>
-    <string name="follow_theme">Follow theme (reset on-TV choices)</string>
-    <string name="follow_theme_hint">Uses the current theme or built-in layout and motion settings. Pushing or resetting a theme also clears your on-TV choices.</string>
     <string name="tv_settings">TV system settings</string>
     <string name="quick_picture">Display</string>
     <string name="quick_network">Network</string>

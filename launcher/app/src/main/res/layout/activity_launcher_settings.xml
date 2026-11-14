@@ -50,7 +50,7 @@
             android:gravity="center_vertical"
             android:maxLines="1"
             android:text="@string/settings_title"
-            android:textColor="#FFFFFFFF"
+            android:textColor="?attr/settingsTitleText"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -176,7 +176,7 @@
             android:fontFamily="@string/font_medium"
             android:gravity="center_vertical"
             android:paddingStart="4dp"
-            android:textColor="#FFFFFFFF"
+            android:textColor="?attr/settingsTitleText"
             android:textSize="22sp"
             android:textStyle="bold" />
 
@@ -255,7 +255,7 @@
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp" />
 
-            <TextView style="@style/SettingsSection" android:text="@string/settings_section_home" />
+            <TextView android:id="@+id/sectionHome" style="@style/SettingsSection" android:text="@string/settings_section_home" android:visibility="gone" />
 
             <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/openOnStartChoice"
@@ -263,12 +263,6 @@
                 android:layout_marginBottom="5dp"
                 android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/followThemeChoice"
-                style="@style/SettingsRow"
-                android:layout_marginBottom="5dp"
-                android:text="@string/follow_theme" />
-            <TextView style="@style/SettingsHint" android:text="@string/follow_theme_hint" />
         </LinearLayout>
     </ScrollView>
 

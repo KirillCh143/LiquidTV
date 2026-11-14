@@ -244,7 +244,7 @@
          layer), "blur" (a real frosted-glass blur of the wallpaper, API 31+) or "liquid" (the same blur plus a
          refractive edge, API 33+). "blur" and "liquid" fall back a tier on an older device or with wallpapers
          off. Can also be set with "dock_backdrop" in a theme's config.json. -->
-    <string name="dock_backdrop">blur</string>
+    <string name="dock_backdrop">color</string>
     <!-- Every app in one row: the dock apps first, the rest after them, and the row scrolls sideways when focus
          reaches its edge. Needs dock_row. Can also be set with "single_row" in a theme. -->
     <bool name="single_row">false</bool>

@@ -33,8 +33,6 @@
     <string name="animations_state">Animationen: %1$s</string>
     <string name="open_on_start_label">Beim Start öffnen</string>
     <string name="open_on_start_state">Beim Start öffnen: %1$s</string>
-    <string name="follow_theme">Design übernehmen (TV-Auswahl zurücksetzen)</string>
-    <string name="follow_theme_hint">Verwendet Layout und Bewegung des aktuellen Designs oder der integrierten Einstellungen. Ein neues oder zurückgesetztes Design löscht die TV-Auswahl ebenfalls.</string>
     <string name="tv_settings">TV-Systemeinstellungen</string>
     <string name="on">Ein</string>
     <string name="off">Aus</string>

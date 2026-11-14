@@ -56,8 +56,6 @@
     <string name="animations_state">Animasyonlar: %1$s</string>
     <string name="open_on_start_label">Açılışta aç</string>
     <string name="open_on_start_state">Açılışta aç: %1$s</string>
-    <string name="follow_theme">Temayı izle (TV seçimlerini sıfırla)</string>
-    <string name="follow_theme_hint">Geçerli temanın veya yerleşik ayarların düzenini ve hareketini kullanır. Tema uygulamak ya da sıfırlamak TV seçimlerini de temizler.</string>
     <string name="tv_settings">TV sistem ayarları</string>
     <string name="on">Açık</string>
     <string name="off">Kapalı</string>

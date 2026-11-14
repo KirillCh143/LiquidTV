@@ -32,8 +32,6 @@
     <string name="animations_state">Animaatiot: %1$s</string>
     <string name="open_on_start_label">Avaa käynnistettäessä</string>
     <string name="open_on_start_state">Avaa käynnistettäessä: %1$s</string>
-    <string name="follow_theme">Noudata teemaa (nollaa televisiossa tehdyt valinnat)</string>
-    <string name="follow_theme_hint">Käyttää nykyisen teeman tai sisäänrakennettuja asettelu- ja liikeasetuksia. Teeman lähettäminen tai nollaaminen poistaa myös televisiossa tehdyt valinnat.</string>
     <string name="tv_settings">Television järjestelmäasetukset</string>
     <string name="quick_picture">Näyttö</string>
     <string name="quick_network">Verkko</string>

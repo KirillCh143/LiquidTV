@@ -33,8 +33,6 @@
     <string name="animations_state">Hiệu ứng: %1$s</string>
     <string name="open_on_start_label">Mở khi khởi động</string>
     <string name="open_on_start_state">Mở khi khởi động: %1$s</string>
-    <string name="follow_theme">Theo theme (xóa lựa chọn trên TV)</string>
-    <string name="follow_theme_hint">Dùng bố cục và hiệu ứng của theme hiện tại hoặc mặc định. Đẩy hoặc đặt lại theme cũng xóa các lựa chọn bạn đã chọn trên TV.</string>
     <string name="tv_settings">Cài đặt hệ thống TV</string>
     <string name="quick_picture">Hiển thị</string>
     <string name="quick_network">Mạng</string>

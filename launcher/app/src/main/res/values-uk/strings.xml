@@ -55,8 +55,6 @@
     <string name="animations_state">Анімації: %1$s</string>
     <string name="open_on_start_label">Відкривати під час запуску</string>
     <string name="open_on_start_state">Відкривати під час запуску: %1$s</string>
-    <string name="follow_theme">Скинути мої зміни (повернути налаштування теми)</string>
-    <string name="follow_theme_hint">Повертає кількість застосунків у рядку, рядки під доком, анімації, розширені ефекти та шпалери до значень із поточної теми. Установка нової теми також скидає ці налаштування.</string>
     <string name="tv_settings">Системні налаштування ТБ</string>
     <string name="quick_picture">Зображення</string>
     <string name="quick_network">Мережа</string>
