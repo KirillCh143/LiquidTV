@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Remote-friendly settings owned by the launcher; system settings stay one row away. */
-public final class LauncherSettingsActivity extends Activity {
+public final class LauncherSettingsActivity extends UiActivity {
     private SharedPreferences choices;
     private TextView colorSchemeChoice, tileRadiusChoice, columnsChoice, dockOpacityChoice, dockBlurChoice;
     /** 0 to 100 in steps of 10. */
@@ -56,6 +56,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView wallpaperChoice;
     private TextView animationsChoice;
     private TextView openOnStartChoice;
+    private TextView languageChoice, fontChoice;
     /** Local patch, not upstream: whether AppLibraryActivity's catalogue shows apps hidden with its own
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
     private TextView libraryShowHiddenChoice, tileOutlineChoice;
@@ -172,6 +173,10 @@ public final class LauncherSettingsActivity extends Activity {
         colorSchemeChoice.setOnClickListener(v -> openColorSchemeChoices());
         dockBackdropChoice = findViewById(R.id.dockBackdropChoice);
         dockBackdropChoice.setOnClickListener(v -> openChoices(dockBackdropChoice, R.string.dock_backdrop_label));
+        languageChoice = findViewById(R.id.languageChoice);
+        languageChoice.setOnClickListener(v -> openLanguageChoices());
+        fontChoice = findViewById(R.id.fontChoice);
+        fontChoice.setOnClickListener(v -> openFontChoices());
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> openWallpapers(false));
         findViewById(R.id.wallpaperResetChoice).setOnClickListener(v -> deleteGithubWallpapers());
@@ -264,6 +269,12 @@ public final class LauncherSettingsActivity extends Activity {
         if (getIntent().getBooleanExtra(REOPEN_BACKDROP, false)) {
             getIntent().removeExtra(REOPEN_BACKDROP);
             openChoices(dockBackdropChoice, R.string.dock_backdrop_label);
+        } else if (getIntent().getBooleanExtra(REOPEN_FONT, false)) {
+            getIntent().removeExtra(REOPEN_FONT);
+            openFontChoices();
+        } else if (getIntent().getBooleanExtra(REOPEN_LANGUAGE, false)) {
+            getIntent().removeExtra(REOPEN_LANGUAGE);
+            openLanguageChoices();
         } else if (getIntent().getBooleanExtra(REOPEN_SCHEME, false)) {
             getIntent().removeExtra(REOPEN_SCHEME);
             openColorSchemeChoices();
@@ -492,7 +503,7 @@ public final class LauncherSettingsActivity extends Activity {
         back.setText(R.string.settings_back);
         LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (40 * dp));
         backParams.topMargin = (int) (16 * dp);
-        backParams.bottomMargin = (int) (4 * dp);
+        backParams.bottomMargin = (int) (12 * dp) - 12;   // the same gap under Back as between the rows below it
         back.setLayoutParams(backParams);
         back.setOnClickListener(v -> closeSub());
         list.addView(back);
@@ -801,6 +812,8 @@ public final class LauncherSettingsActivity extends Activity {
 
     private static final String REOPEN_SCHEME = "reopen_scheme";
     private static final String REOPEN_BACKDROP = "reopen_backdrop";
+    private static final String REOPEN_LANGUAGE = "reopen_language";
+    private static final String REOPEN_FONT = "reopen_font";
 
     private boolean mode0IsMixed() {
         return Config.colorScheme(this) == Config.SCHEME_MIXED;
@@ -839,6 +852,84 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.schemeSubRow).setNextFocusDownId(R.id.schemeSubRow);
         int mode = Config.colorScheme(this);
         (mode == Config.SCHEME_DARK ? slideshowNo : mode == Config.SCHEME_MIXED ? findViewById(R.id.slideshowThird) : slideshowYes).requestFocus();
+        navLock = false;
+    }
+
+    /** Picks the launcher's language and redraws this screen in it, coming back to the same sub-page. */
+    private void setLanguage(String lang) {
+        if (lang.equals(Lang.current(this))) return;
+        Lang.set(this, lang);
+        changed();   // Home rebuilds in the new language when it resumes
+        getIntent().putExtra(REOPEN_LANGUAGE, true);
+        recreate();
+    }
+
+    /** "Language": a list of the launcher's languages, each in its own name, a tick on the chosen one. */
+    private void openLanguageChoices() {
+        String[] codes = new String[Lang.LIST.length], names = new String[Lang.LIST.length];
+        for (int i = 0; i < codes.length; i++) { codes[i] = Lang.LIST[i][0]; names[i] = Lang.LIST[i][2]; }
+        openOptionList(languageChoice, R.string.language_label, codes, names, Lang.current(this), this::setLanguage, false);
+    }
+
+    /** Picks the launcher's font and redraws this screen in it, coming back to the same sub-page. */
+    private void setFont(String code) {
+        if (code.equals(UiFonts.current(this))) return;
+        UiFonts.set(this, code);
+        changed();   // Home rebuilds with the new font when it resumes
+        getIntent().putExtra(REOPEN_FONT, true);
+        recreate();
+    }
+
+    /** "Font": the bundled fonts, each name drawn in its own letters, a tick on the chosen one. */
+    private void openFontChoices() {
+        String[] codes = new String[UiFonts.LIST.length], names = new String[UiFonts.LIST.length];
+        for (int i = 0; i < codes.length; i++) { codes[i] = UiFonts.LIST[i][0]; names[i] = UiFonts.LIST[i][1]; }
+        openOptionList(fontChoice, R.string.font_label, codes, names, UiFonts.current(this), this::setFont, true);
+    }
+
+    /** A sub-page of pick-one rows (like the avatar list): a Back row, one row per option, a tick on the current one. */
+    private void openOptionList(View from, int titleRes, String[] codes, String[] names, String current,
+                                java.util.function.Consumer<String> pick, boolean ownFaces) {
+        navLock = true;
+        subRow = from;
+        subOpen = true;
+        findViewById(R.id.pagePersonal).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(titleRes);
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        addBackRow(list, dp);
+        TextView chosen = null, first = null, last = null;
+        for (int i = 0; i < codes.length; i++) {
+            final String code = codes[i];
+            TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+            row.setText(names[i]);
+            if (ownFaces) row.setTypeface(UiFonts.sample(this, code));
+            row.setMinHeight((int) (52 * dp));
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+            rowParams.bottomMargin = (int) (12 * dp) - 12;
+            row.setLayoutParams(rowParams);
+            row.setCompoundDrawableTintList(null);   // the tick keeps its colour
+            row.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null,
+                    getDrawable(code.equals(current) ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked), null);
+            row.setOnClickListener(v -> pick.accept(code));
+            list.addView(row);
+            if (first == null) first = row;
+            last = row;
+            if (code.equals(current)) chosen = row;
+        }
+        if (last.getId() == View.NO_ID) last.setId(View.generateViewId());
+        last.setNextFocusDownId(last.getId());   // Down on the last option stays on it
+        (chosen != null ? chosen : first).requestFocus();
         navLock = false;
     }
 
@@ -1186,7 +1277,7 @@ public final class LauncherSettingsActivity extends Activity {
         section.setText(title);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = (int) (list.getChildCount() <= 1 ? 19 * dp : 14 * dp);
+        lp.topMargin = (int) (list.getChildCount() <= 1 ? 19 * dp - (8 * dp - 12) : 14 * dp);   // (Back's own gap is the rows' now)
         lp.bottomMargin = (int) (2 * dp);
         section.setLayoutParams(lp);
         list.addView(section);
@@ -1355,6 +1446,8 @@ public final class LauncherSettingsActivity extends Activity {
             if (on) backdropLabel = backdropNames[i] != null ? backdropNames[i] : backdropChoices[i].getText().toString();
         }
         dockBackdropChoice.setText(getString(R.string.dock_backdrop_label) + ": " + backdropLabel);
+        languageChoice.setText(getString(R.string.language_label) + ": " + Lang.nameOf(Lang.current(this)));
+        fontChoice.setText(getString(R.string.font_label) + ": " + UiFonts.nameOf(UiFonts.current(this)));
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);

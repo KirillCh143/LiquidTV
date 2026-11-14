@@ -80,6 +80,7 @@
     <string name="dock_blur_label">Интенсивность размытия</string>
     <string name="tile_outline_label">Обводка приложений</string>
     <string name="dock_backdrop_label">Тема</string>
+    <string name="language_label">Язык</string>
     <string name="dock_backdrop_color">Монохром</string>
     <string name="dock_backdrop_blur">Матовый лёд</string>
     <string name="dock_backdrop_blur_note">(Android 12 и выше)</string>
@@ -270,4 +271,6 @@
     <string name="scheme_part_dock">Схема дока приложений</string>
     <string name="scheme_part_grid">Схема сетки и недавних приложений</string>
     <string name="scheme_part_sub">Схема подменю</string>
+    <string name="font_label">Шрифт</string>
+    <string name="settings_section_language">Язык и шрифт</string>
 </resources>

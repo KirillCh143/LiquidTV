@@ -67,7 +67,7 @@ import java.util.Set;
  * the grid fades in under it and the blur/wash settle in, all in one motion; Up from the dock row or the row
  * right under it (onTileVerticalKey), or Back, plays the same motion in reverse and returns to Home (runExit).
  */
-public class AppLibraryActivity extends Activity implements AppAdapter.TileListener {
+public class AppLibraryActivity extends UiActivity implements AppAdapter.TileListener {
     static final String EXTRA_WALLPAPER = "com.gathin.tvhome.extra.LIBRARY_WALLPAPER";
     static final String EXTRA_DOCK_Y = "com.gathin.tvhome.extra.LIBRARY_DOCK_Y";
     /** Local patch: the dock position Down was pressed from (MainActivity.onLibraryRequested) — the entrance

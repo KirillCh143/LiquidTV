@@ -8,7 +8,7 @@ import android.provider.Settings;
 import android.widget.Toast;
 
 /** Lets the user change HOME through the system UI, without shell or privileged permissions. */
-public class HomeSettingsActivity extends Activity {
+public class HomeSettingsActivity extends UiActivity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);

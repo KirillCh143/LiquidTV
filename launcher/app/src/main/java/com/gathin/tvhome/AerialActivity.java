@@ -17,6 +17,11 @@ import android.widget.TextView;
  * list at all (no cache, no network) it shows the launcher's clock instead.
  */
 public class AerialActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Lang.wrap(base));
+    }
+
 
     private AerialPlayer player;
     /** Launcher settings, "Screensaver type" = Clock: the offline clock on the wallpaper instead of the video. */

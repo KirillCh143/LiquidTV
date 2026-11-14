@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.TvHome" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="uiFontBody">?attr/uiFontBody</item>
+        <item name="uiFontRegular">?attr/uiFontRegular</item>
+        <item name="uiFontLight">?attr/uiFontLight</item>
+        <item name="uiFontExtralight">?attr/uiFontExtralight</item>
+        <item name="uiFontMedium">?attr/uiFontMedium</item>
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:colorBackground">@android:color/black</item>
         <item name="android:windowAnimationStyle">@null</item>
@@ -45,7 +50,7 @@
         <item name="android:background">@drawable/pill_bg</item>
         <item name="android:textColor">@drawable/pill_text</item>
         <item name="android:textSize">15sp</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
         <item name="android:letterSpacing">0.01</item>
         <item name="android:drawablePadding">9dp</item>
         <item name="android:drawableTint">@drawable/pill_text</item>
@@ -74,7 +79,7 @@
         <item name="android:textColor">@drawable/settings_text</item>
         <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
     </style>
@@ -107,7 +112,7 @@
         <item name="android:textColor">@drawable/settings_text</item>
         <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
         <item name="android:drawableStart">@drawable/ic_settings_back</item>
         <item name="android:drawableTint">@drawable/settings_text</item>
         <item name="android:drawablePadding">10dp</item>
@@ -126,7 +131,7 @@
         <item name="android:textColor">@drawable/settings_text</item>
         <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
         <item name="android:drawableTint">@drawable/settings_text</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
@@ -157,7 +162,7 @@
         <item name="android:layout_marginStart">12dp</item>
         <item name="android:textColor">@drawable/settings_nav_text</item>
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
         <item name="android:textStyle">bold</item>
         <item name="android:singleLine">true</item>
         <item name="android:ellipsize">end</item>
@@ -173,7 +178,7 @@
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:letterSpacing">0.06</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
     </style>
     <style name="SettingsCardLabel">
         <item name="android:layout_width">match_parent</item>
@@ -181,7 +186,7 @@
         <item name="android:textColor">#EBF4F4F6</item>
         <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">@string/font_medium</item>
+        <item name="android:fontFamily">?attr/uiFontMedium</item>
     </style>
     <style name="SettingsHint">
         <item name="android:layout_width">match_parent</item>
@@ -191,7 +196,7 @@
         <item name="android:paddingEnd">15dp</item>
         <item name="android:textColor">?attr/settingsHintText</item>
         <item name="android:textSize">12sp</item>
-        <item name="android:fontFamily">@string/font_regular</item>
+        <item name="android:fontFamily">?attr/uiFontRegular</item>
     </style>
     <style name="SettingsDialog" parent="android:Theme.Material.Dialog.Alert">
         <item name="android:windowBackground">@drawable/settings_dialog_bg</item>

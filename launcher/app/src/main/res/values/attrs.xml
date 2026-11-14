@@ -11,4 +11,10 @@
     <!-- Sidebar entries that are neither focused nor the open page. -->
     <attr name="settingsNavText" format="color" />
     <attr name="settingsHintText" format="color" />
+    <!-- The UI fonts (Launcher settings > Font): a font family or a system family name, set by the UiFont_* overlay styles. -->
+    <attr name="uiFontBody" format="reference|string" />
+    <attr name="uiFontRegular" format="reference|string" />
+    <attr name="uiFontLight" format="reference|string" />
+    <attr name="uiFontExtralight" format="reference|string" />
+    <attr name="uiFontMedium" format="reference|string" />
 </resources>

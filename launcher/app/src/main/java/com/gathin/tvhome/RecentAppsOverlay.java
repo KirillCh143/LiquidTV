@@ -246,7 +246,7 @@ final class RecentAppsOverlay {
         TextView t = new TextView(c);
         t.setText(s);
         t.setTextColor(color);
-        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        t.setTypeface(UiFont.themed(t.getContext(), R.attr.uiFontMedium, R.string.font_medium));
         t.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp * density);
         return t;
     }

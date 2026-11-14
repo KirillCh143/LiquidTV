@@ -46,7 +46,7 @@
             android:autoSizeMaxTextSize="24sp"
             android:autoSizeMinTextSize="14sp"
             android:autoSizeTextType="uniform"
-            android:fontFamily="@string/font_medium"
+            android:fontFamily="?attr/uiFontMedium"
             android:gravity="center_vertical"
             android:maxLines="1"
             android:text="@string/settings_title"
@@ -173,7 +173,7 @@
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:layout_marginBottom="5dp"
-            android:fontFamily="@string/font_medium"
+            android:fontFamily="?attr/uiFontMedium"
             android:gravity="center_vertical"
             android:paddingStart="4dp"
             android:textColor="?attr/settingsTitleText"
@@ -218,6 +218,18 @@
 
             <com.gathin.tvhome.SettingsValueRow
                 android:id="@+id/dockBackdropChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <TextView style="@style/SettingsSection" android:text="@string/settings_section_language" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/languageChoice"
+                style="@style/SettingsRow"
+                android:layout_marginBottom="5dp" />
+
+            <com.gathin.tvhome.SettingsValueRow
+                android:id="@+id/fontChoice"
                 style="@style/SettingsRow"
                 android:layout_marginBottom="5dp" />
 
@@ -308,7 +320,7 @@
                         android:gravity="center_horizontal"
                         android:textAlignment="center"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@string/font_medium"
+                        android:fontFamily="?attr/uiFontMedium"
                         android:textColor="#FFFFFFFF"
                         android:textSize="26sp"
                         android:textStyle="bold" />
@@ -322,7 +334,7 @@
                         android:textAlignment="center"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:fontFamily="@string/font_regular"
+                        android:fontFamily="?attr/uiFontRegular"
                         android:textColor="#B3FFFFFF"
                         android:textSize="15sp" />
 
@@ -351,7 +363,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="30dp"
                         android:layout_marginEnd="30dp"
-                        android:fontFamily="@string/font_medium"
+                        android:fontFamily="?attr/uiFontMedium"
                         android:gravity="center_horizontal"
                         android:text="@string/wallpapers_github"
                         android:textAlignment="center"
@@ -365,7 +377,7 @@
                         android:layout_marginStart="30dp"
                         android:layout_marginEnd="30dp"
                         android:layout_marginTop="4dp"
-                        android:fontFamily="@string/font_regular"
+                        android:fontFamily="?attr/uiFontRegular"
                         android:gravity="center_horizontal"
                         android:text="@string/wallpapers_github_desc"
                         android:textAlignment="center"
@@ -388,7 +400,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
-                        android:fontFamily="@string/font_medium"
+                        android:fontFamily="?attr/uiFontMedium"
                         android:gravity="center_horizontal"
                         android:textAlignment="center"
                         android:textColor="#FFFFFFFF"

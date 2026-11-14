@@ -54,7 +54,7 @@
             android:layout_marginTop="-4dp"
             android:textColor="@drawable/power_text"
             android:textSize="14sp"
-            android:fontFamily="@string/font_medium"
+            android:fontFamily="?attr/uiFontMedium"
             android:gravity="center"
             android:duplicateParentState="true"
             android:maxLines="2" />

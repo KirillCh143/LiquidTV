@@ -64,7 +64,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="@drawable/pill_text"
                 android:textSize="14sp"
-                android:fontFamily="@string/font_medium"
+                android:fontFamily="?attr/uiFontMedium"
                 android:duplicateParentState="true"
                 android:singleLine="true"
                 android:ellipsize="end" />
@@ -75,7 +75,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="@drawable/pill_text"
                 android:textSize="11sp"
-                android:fontFamily="@string/font_regular"
+                android:fontFamily="?attr/uiFontRegular"
                 android:alpha="0.75"
                 android:singleLine="true"
                 android:ellipsize="end"

@@ -101,7 +101,7 @@ import java.util.Set;
 /**
  * tvOS style home: black, a pinned dock row, an app grid, and one glass highlight that springs between tiles.
  */
-public class MainActivity extends Activity implements AppAdapter.TileListener {
+public class MainActivity extends UiActivity implements AppAdapter.TileListener {
 
     private static final int LAUNCHER_SETTINGS_REQUEST = 42;
     private static final int LIBRARY_REQUEST = 43;
@@ -3513,11 +3513,34 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *                  popup_settings_grid's own comment) — its focus-scale (below) grows from that far edge
      *                  inward instead of from its centre, so it never grows past an edge with nothing outside
      *                  it to clip into. */
+    /** A wide font or a long word must not end in "...": once the title has its width, shrink it (down to 10sp) until it fits. */
+    private void fitTileTitle(TextView title) {
+        title.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                int width = r - l - title.getPaddingLeft() - title.getPaddingRight();
+                if (width <= 0) return;
+                title.removeOnLayoutChangeListener(this);
+                float size = title.getTextSize();
+                float min = 10 * getResources().getDisplayMetrics().scaledDensity;
+                CharSequence text = title.getText();
+                android.graphics.Paint paint = new android.graphics.Paint(title.getPaint());
+                while (size > min) {
+                    paint.setTextSize(size);
+                    if (paint.measureText(text.toString()) <= width) break;
+                    size -= 0.5f * getResources().getDisplayMetrics().scaledDensity;
+                }
+                if (size != title.getTextSize()) title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size);
+            }
+        });
+    }
+
     private View addSettingsTile(View panel, int slotId, int layoutRes, int icon, String title, PopupWindow popup, boolean pivotEnd, Runnable action) {
         FrameLayout slot = panel.findViewById(slotId);
         View tile = getLayoutInflater().inflate(layoutRes, slot, false);
         ((ImageView) tile.findViewById(R.id.icon)).setImageResource(icon);
         ((TextView) tile.findViewById(R.id.title)).setText(title);
+        fitTileTitle((TextView) tile.findViewById(R.id.title));
         {
             Config tileConfig = Config.load(this);
             // A layer between the glass and the content, so the icon and label stay on top of the wash.

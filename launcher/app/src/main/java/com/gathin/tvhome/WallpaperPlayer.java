@@ -427,7 +427,7 @@ final class WallpaperPlayer {
         text.setFocusable(false);
         text.setAlpha(0f);
         try {
-            text.setTypeface(UiFont.get(context, R.string.font_regular));
+            text.setTypeface(UiFont.themed(context, R.attr.uiFontRegular, R.string.font_regular));
         } catch (Exception ignored) {
             // the system font is fine
         }
