@@ -164,7 +164,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         describeBackdrop(backdropChoices[2], R.id.backdropLiquidHint, R.string.dock_backdrop_liquid_desc, R.string.dock_backdrop_liquid_requires,
                 android.os.Build.VERSION_CODES.TIRAMISU);
         findViewById(R.id.slideshowThird).setOnClickListener(v -> setColorScheme(Config.SCHEME_MIXED));
-        int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow};
+        int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow, R.id.schemeContextRow};
         for (int i = 0; i < partRows.length; i++) {
             final int part = i;
             findViewById(partRows[i]).setOnClickListener(v -> toggleSchemePart(part));
@@ -257,6 +257,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         clipAtEdges(findViewById(R.id.pageAbout));
         clipAtEdges(findViewById(R.id.pageApps));
         clipAtEdges(findViewById(R.id.pageProfile));
+        clipAtEdges(findViewById(R.id.subScroll));
         clipAtEdges(findViewById(R.id.pageWallpaper));
         clipAtEdges(findViewById(R.id.subWallpaperScroll));
         loadWallpaper();
@@ -387,6 +388,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         findViewById(R.id.subChoices).setVisibility(View.GONE);
         findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
         findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        findViewById(R.id.subScroll).setVisibility(View.GONE);   // the list has its own scroller
         ((TextView) findViewById(R.id.pageTitle)).setText(R.string.profile_avatar_title);
         findViewById(R.id.subBack).setVisibility(View.GONE);
         LinearLayout list = findViewById(R.id.subWallpaperList);
@@ -543,6 +545,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         findViewById(R.id.subChoices).setVisibility(View.GONE);
         findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
         findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        findViewById(R.id.subScroll).setVisibility(View.GONE);   // the list has its own scroller
         ((TextView) findViewById(R.id.pageTitle)).setText(R.string.apps_manage_hidden_title);
         findViewById(R.id.subBack).setVisibility(View.GONE);
         LinearLayout list = findViewById(R.id.subWallpaperList);
@@ -643,6 +646,7 @@ public final class LauncherSettingsActivity extends UiActivity {
     private void showSubPage() {
         findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
         findViewById(R.id.subBack).setVisibility(View.VISIBLE);
+        findViewById(R.id.subScroll).setVisibility(View.VISIBLE);
     }
 
     private void clipAtEdges(View scroller) {
@@ -849,7 +853,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         third.setNextFocusUpId(R.id.slideshowNo);
         third.setNextFocusDownId(mode0IsMixed() ? R.id.schemeMenuRow : R.id.slideshowThird);
         findViewById(R.id.schemeMenuRow).setNextFocusUpId(R.id.slideshowThird);
-        findViewById(R.id.schemeSubRow).setNextFocusDownId(R.id.schemeSubRow);
+        findViewById(R.id.schemeContextRow).setNextFocusDownId(R.id.schemeContextRow);   // Down on the last row stays on it
         int mode = Config.colorScheme(this);
         (mode == Config.SCHEME_DARK ? slideshowNo : mode == Config.SCHEME_MIXED ? findViewById(R.id.slideshowThird) : slideshowYes).requestFocus();
         navLock = false;
@@ -901,6 +905,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         findViewById(R.id.subChoices).setVisibility(View.GONE);
         findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
         findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        findViewById(R.id.subScroll).setVisibility(View.GONE);   // the list has its own scroller
         ((TextView) findViewById(R.id.pageTitle)).setText(titleRes);
         findViewById(R.id.subBack).setVisibility(View.GONE);
         LinearLayout list = findViewById(R.id.subWallpaperList);
@@ -1226,6 +1231,7 @@ public final class LauncherSettingsActivity extends UiActivity {
         findViewById(R.id.subChoices).setVisibility(View.GONE);
         findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
         findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        findViewById(R.id.subScroll).setVisibility(View.GONE);   // the list has its own scroller
         ((TextView) findViewById(R.id.pageTitle)).setText(multi ? R.string.slideshow_collection : R.string.wallpaper_label);
         LinearLayout list = findViewById(R.id.subWallpaperList);
         list.removeAllViews();
@@ -1474,8 +1480,8 @@ public final class LauncherSettingsActivity extends UiActivity {
         // The extra rows are gone unless Mixed is chosen: Down from Mixed must then stay on Mixed, not leave focus nowhere.
         if (schemePage) findViewById(R.id.slideshowThird).setNextFocusDownId(
                 schemeMode == Config.SCHEME_MIXED ? R.id.schemeMenuRow : R.id.slideshowThird);
-        int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow};
-        int[] partNames = {R.string.scheme_part_menu, R.string.scheme_part_dock, R.string.scheme_part_grid, R.string.scheme_part_sub};
+        int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow, R.id.schemeContextRow};
+        int[] partNames = {R.string.scheme_part_menu, R.string.scheme_part_dock, R.string.scheme_part_grid, R.string.scheme_part_sub, R.string.scheme_part_context};
         for (int i = 0; i < partRows.length; i++) {
             ((TextView) findViewById(partRows[i])).setText(getString(partNames[i]) + ": "
                     + getString(Config.dark(this, i) ? R.string.color_scheme_dark : R.string.color_scheme_light));

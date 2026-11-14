@@ -692,23 +692,27 @@ public class AppLibraryActivity extends UiActivity implements AppAdapter.TileLis
         if (pkg == null || pkg.equals(getPackageName())) return;
         String label = adapter.labelAt(position);
         boolean isDock = position < columns;
-        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
-        LinearLayout rows = panel.findViewById(R.id.rows);
-        PopupWindow popup = glassPopup(panel);
-        addMenuRow(rows, popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label, position));
+        // The same look as Home's menu (TileMenu): its own colour scheme and the current backdrop. No wallpaper slice
+        // here, the grid's own background is already the blurred wallpaper, so a firmer wash stands in for it.
+        TileMenu menu = new TileMenu(this, Config.load(this).dockBackdrop, false);
+        PopupWindow popup = glassPopup(menu.panel);
+        menu.addRow(popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label, position));
         String key = adapter.keyAt(position);
-        if (key != null) addMenuRow(rows, popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> requestMove(key));
+        if (key != null) menu.addRow(popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> requestMove(key));
         if (!isDock) {
             boolean hidden = hiddenSet.contains(pkg);
-            addMenuRow(rows, popup, hidden ? R.string.library_unhide : R.string.library_hide,
+            menu.addRow(popup, hidden ? R.string.library_unhide : R.string.library_hide,
                     hidden ? R.drawable.ic_menu_show : R.drawable.ic_menu_hide, false,
                     () -> toggleHidden(pkg, !hidden, position));
         }
         Intent uninstall = SystemSettings.uninstall(this, pkg);
-        if (uninstall != null) addMenuRow(rows, popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> openExternal(uninstall, label));
         Intent info = SystemSettings.appInfo(this, pkg);
-        if (info != null) addMenuRow(rows, popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> openExternal(info, label));
-        showMenu(popup, panel, card);
+        if (uninstall != null || info != null) menu.addDivider();
+        if (uninstall != null) menu.addRow(popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> openExternal(uninstall, label));
+        if (info != null) menu.addRow(popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> openExternal(info, label));
+        showMenu(popup, menu.panel, card);
+        View first = menu.firstRow();
+        if (first != null) first.requestFocus();
     }
 
     private void openExternal(Intent intent, String label) {
@@ -817,7 +821,7 @@ public class AppLibraryActivity extends UiActivity implements AppAdapter.TileLis
      *  own tile menu, since a library tile can sit anywhere on screen, not only near the bottom. */
     private void showMenu(PopupWindow popup, View panel, View card) {
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        popup.setWidth(Math.max((int) (220 * density), panel.getMeasuredWidth()));
+        popup.setWidth(Math.max((int) (260 * density), panel.getMeasuredWidth()));
         int[] at = new int[2];
         card.getLocationInWindow(at);
         int gap = (int) (10 * density), height = panel.getMeasuredHeight();

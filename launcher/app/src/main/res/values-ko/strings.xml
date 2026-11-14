@@ -171,4 +171,5 @@
     <string name="font_label">글꼴</string>
     <string name="settings_section_language">언어 및 글꼴</string>
     <string name="more_apps_hint">아래로 스크롤하여 모든 앱 보기</string>
+    <string name="scheme_part_context">상황별 메뉴 색상</string>
 </resources>
