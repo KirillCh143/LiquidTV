@@ -3401,11 +3401,15 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
      *  layout, pre-transform) width/height, which an entrance animation or a focus scale never change. No-op
      *  below API 31, or before the wallpaper's first decode finishes. */
     private void setUpTileGlass(View tile, View slot) {
+        applyGlass(tile.findViewById(R.id.glass), slot, 42f);   // 42 px corners (was 16dp), the same as tile_bg_liquid
+    }
+
+    /** The wallpaper slice behind slot, blurred (and, with Liquid glass, refracted at the edges) into glassView, a child
+     *  of slot's own panel. The tile menu uses it too. No-op without a wallpaper, below API 31, or with Monochrome. */
+    private void applyGlass(ImageView glassView, View slot, float radius) {
         Bitmap bitmap = wallpaperPlayer.currentBitmap();
-        if (bitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !wallpaperPlayer.hasDockBlur()) return;   // Monochrome: no glass layer
-        ImageView glassView = tile.findViewById(R.id.glass);
+        if (glassView == null || bitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !wallpaperPlayer.hasDockBlur()) return;   // Monochrome: no glass layer
         float width = slot.getWidth(), height = slot.getHeight();
-        float radius = 42f;   // 42 px corners (was 16dp), the same as tile_bg_liquid
         // Local patch: a plain CENTER_CROP here would fit the whole wallpaper into this one small tile — a
         // tight, unrecognisable zoom into a random patch of it, not the slice actually behind this tile. A
         // MATRIX scaleType replicates the main wallpaper ImageView's own CENTER_CROP math (same scale, same
@@ -3646,14 +3650,18 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
         String pkg = adapter.packageAt(position);
         // Empty dock slots and the Default-home tile carry the launcher's own package: no menu for them.
         if (key == null || pkg == null || pkg.equals(getPackageName())) return;
-        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
-        LinearLayout rows = panel.findViewById(R.id.rows);
-        PopupWindow popup = glassPopup(panel, (int) (200 * density));
+        // The menu follows the current backdrop: flat with Monochrome, the blurred wallpaper behind it with Frosted ice,
+        // plus the refraction at the edges with Liquid glass.
+        boolean withGlass = !dockBackdropColor && wallpaperPlayer.hasDockBlur() && wallpaperPlayer.currentBitmap() != null
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
+        TileMenu menu = new TileMenu(this, dockBackdropColor ? Config.BACKDROP_COLOR
+                : dockBackdropLiquid ? Config.BACKDROP_LIQUID : Config.BACKDROP_BLUR, withGlass);
+        PopupWindow popup = glassPopup(menu.panel, (int) (260 * density));
         // The same rows, icons and order as the menu in the apps grid (AppLibraryActivity.onTileLongPress): Rename,
         // Move, Uninstall (red), App info. Every Home tile is a dock tile there, so no Hide row.
         String label = adapter.labelAt(position);
-        addSettingsMenuRow(rows, popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label));
-        if (position < adapter.movableCount()) addSettingsMenuRow(rows, popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> {
+        menu.addRow(popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label));
+        if (position < adapter.movableCount()) menu.addRow(popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> {
             if (!beginReorder()) return;
             int at = adapter.positionOf(key);   // beginReorder can rebuild the tiles
             if (at < 0) return;
@@ -3662,28 +3670,38 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
             Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
         });
         Intent uninstall = SystemSettings.uninstall(this, pkg);
-        if (uninstall != null) addSettingsMenuRow(rows, popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> open(uninstall));
         // Some firmware has no App info page at all; a row that only toasts "can't open" helps nobody.
         Intent info = SystemSettings.appInfo(this, pkg);
-        if (info != null) addSettingsMenuRow(rows, popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> open(info));
-        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
+        if (uninstall != null || info != null) menu.addDivider();
+        if (uninstall != null) menu.addRow(popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> open(uninstall));
+        if (info != null) menu.addRow(popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> open(info));
+        menu.panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int width = Math.max((int) (260 * density), menu.panel.getMeasuredWidth());
+        popup.setWidth(width);
         // Dock tiles sit near the bottom of the screen: open the menu above the tile when it would not fit below.
+        // Fade only: the glass slice behind the panel is cut for its final position, which a slide would shift.
         int[] at = new int[2];
         card.getLocationInWindow(at);
-        int gap = (int) (10 * density), height = panel.getMeasuredHeight();
-        if (at[1] + card.getHeight() + gap + height <= root.getHeight()) {
-            dropIn(popup, panel, card, Gravity.START);
-        } else {
-            panel.setAlpha(0f);
-            panel.setPivotY(height);
-            panel.setScaleY(0.92f);
-            panel.setTranslationY(8 * density);
-            popup.showAtLocation(root, Gravity.NO_GRAVITY, at[0], Math.max(0, at[1] - gap - height));
-            panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(220)
-                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+        int gap = (int) (10 * density), height = menu.panel.getMeasuredHeight();
+        int x = Math.max(0, Math.min(at[0], root.getWidth() - width - (int) (12 * density)));
+        int y = at[1] + card.getHeight() + gap + height <= root.getHeight() ? at[1] + card.getHeight() + gap
+                : Math.max(0, at[1] - gap - height);
+        menu.panel.setAlpha(0f);
+        popup.showAtLocation(root, Gravity.NO_GRAVITY, x, y);
+        menu.panel.animate().alpha(1f).setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start();
+        if (menu.glass != null) {
+            final int[] last = {-1, -1, -1, -1};
+            menu.panel.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                if (r - l <= 0 || b - t <= 0) return;
+                int[] loc = new int[2];
+                v.getLocationOnScreen(loc);
+                if (last[0] == loc[0] && last[1] == loc[1] && last[2] == r - l && last[3] == b - t) return;
+                last[0] = loc[0]; last[1] = loc[1]; last[2] = r - l; last[3] = b - t;
+                applyGlass(menu.glass, v, TileMenu.RADIUS_DP * density);
+            });
         }
-        rows.getChildAt(0).requestFocus();
+        View first = menu.firstRow();
+        if (first != null) first.requestFocus();
     }
 
     /** Rename (the same dialog as in the apps grid): the new name shows on Home and in the grid. */

@@ -61,10 +61,10 @@ final class Config {
     static final String LEGACY_DARK_KEY = "color_scheme_dark";   // the first version's yes/no
     static final int SCHEME_LIGHT = 0, SCHEME_DARK = 1, SCHEME_MIXED = 2;
     /** The parts a mixed scheme sets one by one; a part's own key holds true for dark. */
-    static final int PART_MENU = 0, PART_DOCK = 1, PART_GRID = 2, PART_SUB = 3;
-    static final String[] PART_KEYS = {"scheme_menu", "scheme_dock", "scheme_grid", "scheme_sub"};
+    static final int PART_MENU = 0, PART_DOCK = 1, PART_GRID = 2, PART_SUB = 3, PART_CONTEXT = 4;
+    static final String[] PART_KEYS = {"scheme_menu", "scheme_dock", "scheme_grid", "scheme_sub", "scheme_context"};
     /** Set whenever Config loads (or the scheme changes), so washes drawn without a Config in hand follow it. */
-    private static final boolean[] DARK_PARTS = new boolean[4];
+    private static final boolean[] DARK_PARTS = new boolean[5];
 
     static int colorScheme(Context context) {
         android.content.SharedPreferences p = context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE);
