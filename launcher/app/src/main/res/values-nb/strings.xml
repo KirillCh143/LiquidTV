@@ -39,8 +39,6 @@
     <string name="animations_state">Animasjoner: %1$s</string>
     <string name="open_on_start_label">Åpne ved oppstart</string>
     <string name="open_on_start_state">Åpne ved oppstart: %1$s</string>
-    <string name="follow_theme">Følg temaet (tilbakestill lokale valg)</string>
-    <string name="follow_theme_hint">Bruker temaets eller de innebygde innstillingene for oppsett og bevegelse. Hvis du overfører eller tilbakestiller et tema, nullstilles også valgene du har gjort på TV-en.</string>
     <string name="tv_settings">TV-innstillinger</string>
     <string name="quick_picture">Bilde</string>
     <string name="quick_network">Nettverk</string>

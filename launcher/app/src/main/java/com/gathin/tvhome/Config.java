@@ -46,6 +46,54 @@ final class Config {
     /** Local patch: the Gaussian blur's sigma behind the dock, the Menu button and the Settings grid's tiles, in dp
      *  (0 = no blur), chosen in Launcher settings. */
     static final String DOCK_BLUR_KEY = "dock_blur";
+    /** Launcher settings, "App outline": whether the focused app tile shows its white outline (default yes). */
+    static final String TILE_OUTLINE_KEY = "tile_outline";
+
+    static boolean tileOutline(Context context) {
+        return context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getBoolean(TILE_OUTLINE_KEY, true);
+    }
+    /** App tile corner radius in px (local patch): 0..MAX_TILE_RADIUS, default 36. */
+    static final String TILE_RADIUS_KEY = "tile_radius";
+    static final int MAX_TILE_RADIUS = 50;
+    /** Colour scheme (local patch): SCHEME_LIGHT (the default look), SCHEME_DARK (black washes) or SCHEME_MIXED,
+     *  where each part of the launcher takes its own scheme. */
+    static final String SCHEME_KEY = "color_scheme";
+    static final String LEGACY_DARK_KEY = "color_scheme_dark";   // the first version's yes/no
+    static final int SCHEME_LIGHT = 0, SCHEME_DARK = 1, SCHEME_MIXED = 2;
+    /** The parts a mixed scheme sets one by one; a part's own key holds true for dark. */
+    static final int PART_MENU = 0, PART_DOCK = 1, PART_GRID = 2, PART_SUB = 3;
+    static final String[] PART_KEYS = {"scheme_menu", "scheme_dock", "scheme_grid", "scheme_sub"};
+    /** Set whenever Config loads (or the scheme changes), so washes drawn without a Config in hand follow it. */
+    private static final boolean[] DARK_PARTS = new boolean[4];
+
+    static int colorScheme(Context context) {
+        android.content.SharedPreferences p = context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE);
+        int mode = p.getInt(SCHEME_KEY, p.getBoolean(LEGACY_DARK_KEY, false) ? SCHEME_DARK : SCHEME_LIGHT);
+        return Math.max(SCHEME_LIGHT, Math.min(SCHEME_MIXED, mode));
+    }
+
+    /** Whether one part is dark under the chosen scheme. */
+    static boolean dark(Context context, int part) {
+        int mode = colorScheme(context);
+        if (mode != SCHEME_MIXED) return mode == SCHEME_DARK;
+        return context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getBoolean(PART_KEYS[part], false);
+    }
+
+    /** Remembers every part's scheme for the drawing code that has no Context. */
+    static void applyScheme(Context context) {
+        for (int i = 0; i < DARK_PARTS.length; i++) DARK_PARTS[i] = dark(context, i);
+    }
+
+    /** The part's scheme as of the last load. */
+    static boolean dark(int part) {
+        return DARK_PARTS[part];
+    }
+    static final int DEFAULT_TILE_RADIUS = 36;
+
+    static int tileRadius(Context context) {
+        int saved = context.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getInt(TILE_RADIUS_KEY, DEFAULT_TILE_RADIUS);
+        return Math.max(0, Math.min(MAX_TILE_RADIUS, saved));
+    }
     static final int DEFAULT_DOCK_BLUR = 8, MAX_DOCK_BLUR = 20;
     /**
      * Counts the changes made in Launcher settings. Home remembers the count it was built with and rebuilds on
@@ -376,9 +424,23 @@ final class Config {
     }
 
     /** Local patch: whether a dock band should draw as light frosted glass (dock_glass) — gated to dock_backdrop
-     *  "liquid" (MainActivity's own dock, and AppLibraryActivity's, which otherwise matches Home's look). */
+     *  "liquid" or "blur" (Frosted ice), so the light scheme gives the white wash on both and the dark one the black band; (MainActivity's own dock, and AppLibraryActivity's, which otherwise matches Home's look). */
     static boolean dockLightGlass(Config cfg) {
-        return cfg.dockGlass && BACKDROP_LIQUID.equals(cfg.dockBackdrop);
+        return dockLightGlass(cfg, dark(PART_DOCK));
+    }
+
+    /** The same for a part with its own scheme (the pills and the submenu use PART_SUB): never light when dark. */
+    static boolean dockLightGlass(Config cfg, boolean dark) {
+        return cfg.dockGlass && !dark;   // every backdrop, Monochrome too: the light scheme is the white wash, the dark one the black band
+    }
+
+    /** The light wash's alpha (0 to 255) for a gradient end of baseAlpha at the dock opacity (percent): the old
+     *  baseAlpha scaled by the opacity, but climbing to fully opaque at 100% when solidAtFull (the Monochrome backdrop only), so that setting reads as solid. */
+    static int lightWashAlpha(int baseAlpha, int opacityPercent, boolean solidAtFull) {
+        float k = Math.max(0, Math.min(100, opacityPercent)) / 100f;
+        if (!solidAtFull) return Math.round(baseAlpha * k);
+        float k4 = k * k * k * k;
+        return Math.round(255f * (baseAlpha / 255f * k + (1f - baseAlpha / 255f) * k4));
     }
 
     /** A known glass_style, or glass (the default) for anything else. */
@@ -394,7 +456,29 @@ final class Config {
         return ctx.getExternalFilesDir(null);
     }
 
+    /** The pictures of the slideshow collection: the built-in ones first, then the downloaded ones, in name order. */
+    private static List<File> slideshowFiles(Context ctx, File dir, java.util.Set<String> ids) {
+        List<File> files = new ArrayList<>();
+        if (ids.contains(DefaultWallpaper.CHOICE)) {
+            File f = DefaultWallpaper.fileFor(ctx, DefaultWallpaper.CHOICE);
+            if (f != null) files.add(f);
+        }
+        for (String[] extra : DefaultWallpaper.EXTRA) {
+            if (!ids.contains(extra[0])) continue;
+            File f = DefaultWallpaper.fileFor(ctx, extra[0]);
+            if (f != null) files.add(f);
+        }
+        if (dir != null) {
+            for (File image : WallpaperRotation.images(new File(dir, "wallpapers"))) {
+                if (ids.contains(image.getName())) files.add(image);
+            }
+        }
+        return files;
+    }
+
     static Config load(Context ctx) {
+        AppAdapter.tileRadiusPx = tileRadius(ctx);
+        applyScheme(ctx);
         Resources res = ctx.getResources();
         List<String> dock = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.dock_apps)));
         boolean fillDock = res.getBoolean(R.bool.fill_dock);
@@ -622,15 +706,28 @@ final class Config {
         // Local patch: the built-in wallpaper (DefaultWallpaper) is what shows when nothing else does. Picked
         // explicitly ("default", the reset row in Launcher settings) it always wins; with no pick and no theme
         // picture, the downloaded collection shows if there is one, and the built-in one until then.
-        if (wallpaperEnabled && (DefaultWallpaper.CHOICE.equals(wallpaperChoice)
+        if (wallpaperEnabled && (DefaultWallpaper.isChoice(wallpaperChoice)
                 || (wallpaperChoice == null && wallpapers.isEmpty()))) {
-            List<File> collection = DefaultWallpaper.CHOICE.equals(wallpaperChoice) || dir == null
+            List<File> collection = DefaultWallpaper.isChoice(wallpaperChoice) || dir == null
                     ? Collections.<File>emptyList() : WallpaperRotation.images(new File(dir, "wallpapers"));
-            File builtIn = collection.isEmpty() ? DefaultWallpaper.file(ctx) : null;
+            File builtIn = collection.isEmpty() ? DefaultWallpaper.fileFor(ctx, wallpaperChoice) : null;
             if (!collection.isEmpty() || builtIn != null) {
                 wallpapers.clear();
                 wallpapers.addAll(collection.isEmpty() ? Collections.singletonList(builtIn) : collection);
                 wallpaper = wallpapers.get(0);
+            }
+        }
+        // Local patch: the on-TV slideshow (Launcher settings, "Slideshow") rotates the chosen collection on Home
+        // every N minutes, through the same rotation WallpaperPlayer already runs for a theme's collection.
+        if (choices.getBoolean("slideshow", false)) {
+            List<File> show = slideshowFiles(ctx, dir, choices.getStringSet("slideshow_set", Collections.<String>emptySet()));
+            if (!show.isEmpty()) {
+                wallpapers.clear();
+                wallpapers.addAll(show);
+                wallpaper = show.get(0);
+                wallpaperEnabled = true;
+                rotationMinutes = Math.max(1, choices.getInt("slideshow_minutes", 1));
+                wallpaperOrder = WallpaperRotation.ORDER_SEQUENTIAL;
             }
         }
         // A festive skin comes only from a theme; config.xml has no festival.
@@ -689,11 +786,11 @@ final class Config {
             SharedPreferences.Editor editor = choices.edit();
             if (!"absent".equals(token)) editor.remove("columns").remove("animations")
                     .remove(WALLPAPER_CHOICE_KEY)
-                    .remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY);
+                    .remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY).remove(TILE_OUTLINE_KEY);
             editor.putString(THEME_SIGNATURE_KEY, signature).commit();
         } else if (!seen.equals(signature)) {
             choices.edit().remove("columns").remove("animations")
-                    .remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY)
+                    .remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY).remove(DOCK_BACKDROP_KEY).remove(DOCK_BLUR_KEY).remove(TILE_OUTLINE_KEY)
                     .putString(THEME_SIGNATURE_KEY, signature).commit();
         }
     }

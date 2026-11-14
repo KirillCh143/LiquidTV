@@ -7,4 +7,47 @@
     <string name="font_light" translatable="false">@font/outfit_light</string>
     <string name="font_extralight" translatable="false">@font/outfit_extralight</string>
     <string name="font_medium" translatable="false">@font/outfit_medium</string>
+    <!-- Overlays for the font choice (UiFonts); each defines all five UI fonts. -->
+    <style name="UiFont_Outfit">
+        <item name="uiFontBody">@string/font_body</item>
+        <item name="uiFontRegular">@string/font_regular</item>
+        <item name="uiFontLight">@string/font_light</item>
+        <item name="uiFontExtralight">@string/font_extralight</item>
+        <item name="uiFontMedium">@string/font_medium</item>
+    </style>
+    <style name="UiFont_Roboto">
+        <item name="uiFontBody">@font/roboto_regular</item>
+        <item name="uiFontRegular">@font/roboto_regular</item>
+        <item name="uiFontLight">@font/roboto_light</item>
+        <item name="uiFontExtralight">@font/roboto_extralight</item>
+        <item name="uiFontMedium">@font/roboto_medium</item>
+    </style>
+    <style name="UiFont_Nunito">
+        <item name="uiFontBody">@font/nunito_regular</item>
+        <item name="uiFontRegular">@font/nunito_regular</item>
+        <item name="uiFontLight">@font/nunito_light</item>
+        <item name="uiFontExtralight">@font/nunito_extralight</item>
+        <item name="uiFontMedium">@font/nunito_medium</item>
+    </style>
+    <style name="UiFont_Rubik">
+        <item name="uiFontBody">@font/rubik_regular</item>
+        <item name="uiFontRegular">@font/rubik_regular</item>
+        <item name="uiFontLight">@font/rubik_light</item>
+        <item name="uiFontExtralight">@font/rubik_extralight</item>
+        <item name="uiFontMedium">@font/rubik_medium</item>
+    </style>
+    <style name="UiFont_RobotoSlab">
+        <item name="uiFontBody">@font/robotoslab_regular</item>
+        <item name="uiFontRegular">@font/robotoslab_regular</item>
+        <item name="uiFontLight">@font/robotoslab_light</item>
+        <item name="uiFontExtralight">@font/robotoslab_extralight</item>
+        <item name="uiFontMedium">@font/robotoslab_medium</item>
+    </style>
+    <style name="UiFont_Ubuntu">
+        <item name="uiFontBody">@font/ubuntu_regular</item>
+        <item name="uiFontRegular">@font/ubuntu_regular</item>
+        <item name="uiFontLight">@font/ubuntu_light</item>
+        <item name="uiFontExtralight">@font/ubuntu_extralight</item>
+        <item name="uiFontMedium">@font/ubuntu_medium</item>
+    </style>
 </resources>

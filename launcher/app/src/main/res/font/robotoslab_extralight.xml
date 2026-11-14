@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- robotoslab_vf at weight 200, built once per process (see outfit_medium.xml). -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <font
+        android:font="@font/robotoslab_vf"
+        android:fontStyle="normal"
+        android:fontWeight="200"
+        android:fontVariationSettings="'wght' 200"
+        tools:targetApi="28" />
+</font-family>

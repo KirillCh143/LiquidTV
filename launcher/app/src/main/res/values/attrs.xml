@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher settings' colour scheme (Personalization > Main theme): the screen's scrim and the inactive rows' wash. -->
+    <attr name="settingsScrim" format="color" />
+    <attr name="settingsNavRest" format="color" />
+    <attr name="settingsRowRest" format="color" />
+    <attr name="settingsNavSelected" format="color" />
+    <!-- Section titles and the grey notes under rows: dark on the light scheme, light on the dark one. -->
+    <attr name="settingsSectionText" format="color" />
+    <attr name="settingsTitleText" format="color" />
+    <!-- Sidebar entries that are neither focused nor the open page. -->
+    <attr name="settingsNavText" format="color" />
+    <attr name="settingsHintText" format="color" />
+    <!-- The UI fonts (Launcher settings > Font): a font family or a system family name, set by the UiFont_* overlay styles. -->
+    <attr name="uiFontBody" format="reference|string" />
+    <attr name="uiFontRegular" format="reference|string" />
+    <attr name="uiFontLight" format="reference|string" />
+    <attr name="uiFontExtralight" format="reference|string" />
+    <attr name="uiFontMedium" format="reference|string" />
+</resources>

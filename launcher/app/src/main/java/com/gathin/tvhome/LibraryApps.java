@@ -44,6 +44,11 @@ final class LibraryApps {
 
     static Set<String> loadHidden(Context context) { return read(hiddenStore(context)); }
 
+    /** Shows every app again: the hidden list is emptied. */
+    static void clearHidden(Context context) {
+        hiddenStore(context).delete();
+    }
+
     static boolean setHidden(Context context, String pkg, boolean hidden) {
         Set<String> current;
         try { current = readStrict(hiddenStore(context)); }

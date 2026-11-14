@@ -101,7 +101,7 @@ import java.util.Set;
 /**
  * tvOS style home: black, a pinned dock row, an app grid, and one glass highlight that springs between tiles.
  */
-public class MainActivity extends Activity implements AppAdapter.TileListener {
+public class MainActivity extends UiActivity implements AppAdapter.TileListener {
 
     private static final int LAUNCHER_SETTINGS_REQUEST = 42;
     private static final int LIBRARY_REQUEST = 43;
@@ -129,7 +129,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean instantDock;
     /** Idle time on Home before ClockActivity; 0 is off (config.xml, home_idle_clock_minutes). */
     private long idleClockMs;
-    private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
+    /** Idle Home starts the chosen screensaver (Launcher settings, "Screensaver type": the clock or the live wallpapers),
+     *  after the "Sleep timer" minutes. */
+    private final Runnable showIdleClock = () -> startActivity(new Intent(this, AerialActivity.class));
     private String liveTvAction;
     private String liveTvInputId;
     /** The same opt-in menu is available from either hold-OK or the remote's Menu key. */
@@ -148,6 +150,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config.xml dock_backdrop "liquid": gates the Settings grid's own per-tile glass layers (showSettingsGrid)
      *  the same way it gates the dock's and the top bar's own liquid refraction. */
     private boolean dockBackdropLiquid;
+    /** dock_backdrop "blur" (Frosted ice): the dock, pills and Settings tiles get GlassRim's white outline. */
+    private boolean dockBackdropBlur;
+    /** dock_backdrop "color" (Monochrome): 100% dock opacity makes the light wash solid. */
+    private boolean dockBackdropColor;
+
+    /** Monochrome with the light scheme and a dock opacity of 80% or more: the wash is (nearly) solid white, so the
+     *  submenu's text and the time/avatar pill's text are black. */
+    private boolean blackTextOnWash(Config c) {
+        return dockBackdropColor && c.dockGlass && !Config.dark(Config.PART_SUB) && c.dockOpacity >= 80;
+    }
+    /** The time/avatar pill's own turn of GlassRim's gradient, in degrees. */
+    private static final float CLOCK_PILL_RIM_DEGREES = -130f;
     private GlassView glass;
     private View ambient;
     private TextView heroName;
@@ -400,7 +414,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
         liveTvPkg = cfg.liveTvPackage;
-        idleClockMs = cfg.homeIdleClockMinutes * MINUTE_MS;
+        // Local patch: the Sleep timer in Launcher settings (5 minutes until set) is how long Home may sit idle before the
+        // screensaver starts; it replaces config.xml's home_idle_clock_minutes.
+        SharedPreferences sleepChoices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        // "Use screensaver" off: Home never starts it by itself, only the Settings grid's Screensaver tile does.
+        idleClockMs = sleepChoices.getBoolean("screensaver_enabled", true)
+                ? sleepChoices.getInt("sleep_timer_minutes", 5) * MINUTE_MS : 0;
         bootToLiveTv = cfg.bootToLiveTv;
         openOnStartChoice = cfg.openOnStartChoice;
         liveTvAction = cfg.liveTvAction;
@@ -421,6 +440,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         getWindow().setBackgroundDrawable(null);
         wallpaperPlayer = new WallpaperPlayer(this, root, cfg);
         dockBackdropLiquid = Config.BACKDROP_LIQUID.equals(cfg.dockBackdrop);
+        dockBackdropColor = Config.BACKDROP_COLOR.equals(cfg.dockBackdrop);
+        dockBackdropBlur = Config.BACKDROP_BLUR.equals(cfg.dockBackdrop) && wallpaperPlayer.hasDockBlur();
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
@@ -435,6 +456,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (!ambientGlow) ambient.setVisibility(View.GONE);
         heroName = findViewById(R.id.heroName);
         hero = findViewById(R.id.hero);
+        // Local patch: a light shadow under the app's name, the same as under the date on the clock screensaver.
+        heroName.setShadowLayer(10f * density, 0, 2f * density, 0x55000000);
+        ((android.view.ViewGroup) hero).setClipChildren(false);   // the shadow reaches past the text's own box
         // The hero is now a group (name, and the cinematic lines): without this every fade of the default
         // shelf would render it through an offscreen buffer first, as the glow above notes.
         hero.forceHasOverlappingRendering(false);
@@ -587,8 +611,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             float dx = gridLoc[0] - rootLoc[0], dy = gridLoc[1] - rootLoc[1];
             wallpaperPlayer.setDockMask(left + dx, top + dy, right + dx, bottom + dy, radius);
         } : null;
-        if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding,
-                singleRow, cfg.dockBandAll, dockMask));
+        if (dockRow) {
+            DockDecoration dockDecoration = new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding,
+                    singleRow, cfg.dockBandAll, dockMask);
+            dockDecoration.setRim(dockBackdropBlur);
+            dockDecoration.setSolidAtFull(dockBackdropColor);
+            dockDecoration.setSolidRim(dockBackdropColor);
+            grid.addItemDecoration(dockDecoration);
+        }
         // Local patch (see WallpaperPlayer.setButtonsMask): the same blur/liquid layer as the dock, behind the
         // top-bar pills as one row — pill_bg's own 21dp corners (a full circle for the 42dp Menu button) (its rounded rect radius). showSettingsGrid
         // borrows this same layer for its own glass look while it's open, and refreshButtonsMask is how it
@@ -722,7 +752,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // button in the bar (the separate Android-settings gear button was removed).
             // The time (the button is a TextClock: the system's 24-hour / AM-PM format) left of the user icon.
             btnSettings.setContentDescription(getString(R.string.menu));
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_user_circle, 0);
+            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, userIcon(), null);
             ((TextView) btnSettings).setCompoundDrawablePadding(Math.round(8 * density));
             btnSettings.setPaddingRelative(Math.round(8 * density) + 4, 0, 0, 0);   // +4 px left of the time; the 30dp icon fills the button height and the end, so its ring is the same distance from the top, bottom and end edges
             fitMenuButtonWidth();
@@ -759,7 +789,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             btnInputs.setVisibility(View.GONE);
             btnWifi.setVisibility(View.GONE);
             btnSettings.setContentDescription(getString(R.string.menu));
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_user_circle, 0);
+            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, userIcon(), null);
             if (!iconOnlyButtons) makeIconOnly((TextView) btnSettings);
             btnSettings.setOnClickListener(v -> showTopMenu());
             // The lone gear sits at the header's middle, not on its bottom line like the row of pills.
@@ -809,11 +839,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // reading as two nested pill outlines. Swap in a borderless variant; focus/reorder feedback unchanged.
         // dock_backdrop "liquid" with dock_glass on gets the dock's own white wash too (pill_bg_liquid), so the
         // pills read as the same glass as the dock, not just its blur/liquid shader without the tint on top.
-        if (wallpaperPlayer.hasDockBlur()) {
-            int pillBg = Config.dockLightGlass(cfg) ? R.drawable.pill_bg_liquid : R.drawable.pill_bg_glass;
+        {
+            // The dock's own wash at its own "Dock panel opacity" (Launcher settings), over the pills' glass layer.
+            // Without a glass layer (Monochrome) only the time/avatar pill takes it: the dock's flat band colour.
             ViewGroup topButtonsRow = findViewById(R.id.topButtons);
             for (int i = 0; i < topButtonsRow.getChildCount(); i++) {
-                topButtonsRow.getChildAt(i).setBackgroundResource(pillBg);
+                View pill = topButtonsRow.getChildAt(i);
+                if (!wallpaperPlayer.hasDockBlur() && pill.getId() != R.id.btnSettings) continue;
+                if (pill.getId() == R.id.btnSettings && pill instanceof TextView && blackTextOnWash(cfg)) {
+                    ((TextView) pill).setTextColor(Color.BLACK);
+                    if (((TextView) pill).getCompoundDrawableTintList() != null) {
+                        ((TextView) pill).setCompoundDrawableTintList(ColorStateList.valueOf(Color.BLACK));
+                    }
+                }
+                pill.setBackground(washedBackground(21 * density, Config.dockLightGlass(cfg, Config.dark(Config.PART_SUB)), cfg.dockOpacity,
+                        true, pill.getId() == R.id.btnSettings ? CLOCK_PILL_RIM_DEGREES : 0f));
             }
         }
 
@@ -893,6 +933,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         });
         return true;
+    }
+
+    /** The icon at the end of the top bar's time: the chosen avatar on a white disc (Launcher settings, Profile), else
+     *  the plain user icon. The box stays the icon's 30dp; the disc is the size of its ring (28dp, 56 px at 320 dpi). */
+    private Drawable userIcon() {
+        String avatar = Avatars.avatar(this);
+        if (avatar.isEmpty()) return getDrawable(R.drawable.ic_user_circle_large);
+        int box = Math.round(30 * density), disc = Math.round(28 * density);
+        Drawable face = new Avatars.Face(avatar, box, disc);
+        face.setBounds(0, 0, box, box);
+        return face;
     }
 
     private Intent launcherSettingsIntent() {
@@ -988,6 +1039,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onResume() {
         super.onResume();
         fitMenuButtonWidth();   // the system's 12/24-hour setting may have changed while away
+        if (grid != null && adapter != null) grid.post(() -> adapter.playReturn(grid));   // the launched tile settles in
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -1160,6 +1212,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
+        updateMoreAppsHint();
+    }
+
+    /** The arrow and "Scroll down for all apps" under the dock: only when the dock cannot hold every app. */
+    private void updateMoreAppsHint() {
+        View hint = findViewById(R.id.moreAppsHint);
+        if (hint == null || adapter == null) return;
+        boolean more = adapter.hasMoreAppsThanDock();
+        if (more) {
+            hint.setVisibility(View.VISIBLE);
+            hint.animate().alpha(1f).setDuration(300).start();
+        } else {
+            hint.animate().cancel();
+            hint.setAlpha(0f);
+            hint.setVisibility(View.GONE);
+        }
     }
 
     /**
@@ -1177,7 +1245,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
-    /** Any key on Home restarts the countdown to the idle clock. */
+    /** Any key on Home restarts the countdown to the screensaver. */
     @Override
     public void onUserInteraction() {
         super.onUserInteraction();
@@ -3301,10 +3369,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         TextView text = anchor instanceof TextView ? (TextView) anchor : null;
         android.content.res.ColorStateList colors = text != null ? text.getTextColors() : null;
         android.content.res.ColorStateList tint = text != null ? text.getCompoundDrawableTintList() : null;
-        anchor.setBackgroundResource(R.drawable.pill_bg_rest);
+        if (wallpaperPlayer.hasDockBlur() || anchor.getId() == R.id.btnSettings) {
+            // The pill keeps the dock's wash while the grid is open (state-free, so no focus white behind it).
+            Config wash = Config.load(this);
+            anchor.setBackground(rimmed(restWash(21 * density, Config.dockLightGlass(wash, Config.dark(Config.PART_SUB)), wash.dockOpacity), 21 * density,
+                    anchor.getId() == R.id.btnSettings ? CLOCK_PILL_RIM_DEGREES : 0f));
+        } else {
+            anchor.setBackgroundResource(R.drawable.pill_bg_rest);
+        }
         if (text != null) {
-            text.setTextColor(Color.WHITE);
-            text.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            int calmText = anchor.getId() == R.id.btnSettings && blackTextOnWash(Config.load(this)) ? Color.BLACK : Color.WHITE;
+            text.setTextColor(calmText);
+            text.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(calmText));
         }
         popup.setOnDismissListener(() -> {
             if (openPopup == popup) openPopup = null;
@@ -3326,7 +3402,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  below API 31, or before the wallpaper's first decode finishes. */
     private void setUpTileGlass(View tile, View slot) {
         Bitmap bitmap = wallpaperPlayer.currentBitmap();
-        if (bitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        if (bitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !wallpaperPlayer.hasDockBlur()) return;   // Monochrome: no glass layer
         ImageView glassView = tile.findViewById(R.id.glass);
         float width = slot.getWidth(), height = slot.getHeight();
         float radius = 42f;   // 42 px corners (was 16dp), the same as tile_bg_liquid
@@ -3389,6 +3465,63 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
+    /**
+     * Local patch: a pill's or grid tile's background with the dock band's own wash at rest, so "Dock panel opacity" in
+     * Launcher settings moves them together with the dock. With dock_glass on the "liquid" backdrop that is the dock's
+     * white gradient (32% fading to 18%), scaled by the opacity; otherwise the dock's dark band colour at the opacity.
+     * Focused is the plain white every pill gives, and (pills only) the reorder mode's blue.
+     */
+    private Drawable washedBackground(float radiusPx, boolean lightGlass, int opacityPercent, boolean reorderState, float rimDegrees) {
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        android.graphics.drawable.GradientDrawable focused = new android.graphics.drawable.GradientDrawable();
+        focused.setColor(0xF5FFFFFF);
+        focused.setCornerRadius(radiusPx);
+        states.addState(new int[]{android.R.attr.state_focused}, focused);
+        if (reorderState) {
+            android.graphics.drawable.GradientDrawable reorder = new android.graphics.drawable.GradientDrawable();
+            reorder.setColor(0x596EC1FF);
+            reorder.setStroke(Math.round(1.5f * density), 0xFF6EC1FF);
+            reorder.setCornerRadius(radiusPx);
+            states.addState(new int[]{android.R.attr.state_activated}, reorder);
+        }
+        states.addState(new int[]{}, rimmed(restWash(radiusPx, lightGlass, opacityPercent), radiusPx, rimDegrees));
+        return states;
+    }
+
+    /** With the Frosted ice backdrop, d with GlassRim's outline over it. */
+    private Drawable rimmed(Drawable d, float radiusPx) {
+        return rimmed(d, radiusPx, 0f);
+    }
+
+    private Drawable rimmed(Drawable d, float radiusPx, float extraDegrees) {
+        if (dockBackdropColor) return GlassRim.solidOver(d, radiusPx, density);   // Monochrome: plain white 15%, 1dp
+        return dockBackdropBlur ? GlassRim.over(d, radiusPx, density, extraDegrees) : d;
+    }
+
+    /** The dock band's wash alone (no states): its white gradient or dark colour at the dock opacity. */
+    private android.graphics.drawable.GradientDrawable restWash(float radiusPx, boolean lightGlass, int opacityPercent) {
+        android.graphics.drawable.GradientDrawable rest = new android.graphics.drawable.GradientDrawable();
+        float k = Math.max(0, Math.min(100, opacityPercent)) / 100f;
+        if (lightGlass) {
+            rest.setOrientation(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM);
+            rest.setColors(new int[]{(Config.lightWashAlpha(0x52, opacityPercent, dockBackdropColor) << 24) | 0xFFFFFF, (Config.lightWashAlpha(0x2E, opacityPercent, dockBackdropColor) << 24) | 0xFFFFFF});
+        } else {
+            rest.setColor((Math.round(255 * k) << 24) | (Config.dark(Config.PART_SUB) ? 0x000000 : 0x141416));
+        }
+        rest.setCornerRadius(radiusPx);
+        return rest;
+    }
+
+    /** A grid tile's wash: drawn over the tile (so over its own glass layer, which would hide a background), and gone
+     *  while the tile is focused, when it is plain white. */
+    private Drawable tileWash(float radiusPx, boolean lightGlass, int opacityPercent) {
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused}, new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+        states.addState(new int[]{}, (dockBackdropColor ? GlassRim.solidOver(restWash(radiusPx, lightGlass, opacityPercent), radiusPx, density)
+                : rimmed(restWash(radiusPx, lightGlass, opacityPercent), radiusPx, 230f)));
+        return states;
+    }
+
     /** One tile in popup_settings_grid: inflates layoutRes (item_settings_tile for the big Reboot tile,
      *  item_settings_tile_row — icon left, label right — for every other one) into its slot and wires the
      *  click (closing the popup first), leaving the tile itself for gridKey to wire its own D-pad neighbours.
@@ -3396,11 +3529,45 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *                  popup_settings_grid's own comment) — its focus-scale (below) grows from that far edge
      *                  inward instead of from its centre, so it never grows past an edge with nothing outside
      *                  it to clip into. */
+    /** A wide font or a long word must not end in "...": once the title has its width, shrink it (down to 10sp) until it fits. */
+    private void fitTileTitle(TextView title) {
+        title.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                int width = r - l - title.getPaddingLeft() - title.getPaddingRight();
+                if (width <= 0) return;
+                title.removeOnLayoutChangeListener(this);
+                float size = title.getTextSize();
+                float min = 10 * getResources().getDisplayMetrics().scaledDensity;
+                CharSequence text = title.getText();
+                android.graphics.Paint paint = new android.graphics.Paint(title.getPaint());
+                while (size > min) {
+                    paint.setTextSize(size);
+                    if (paint.measureText(text.toString()) <= width) break;
+                    size -= 0.5f * getResources().getDisplayMetrics().scaledDensity;
+                }
+                if (size != title.getTextSize()) title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size);
+            }
+        });
+    }
+
     private View addSettingsTile(View panel, int slotId, int layoutRes, int icon, String title, PopupWindow popup, boolean pivotEnd, Runnable action) {
         FrameLayout slot = panel.findViewById(slotId);
         View tile = getLayoutInflater().inflate(layoutRes, slot, false);
         ((ImageView) tile.findViewById(R.id.icon)).setImageResource(icon);
         ((TextView) tile.findViewById(R.id.title)).setText(title);
+        fitTileTitle((TextView) tile.findViewById(R.id.title));
+        {
+            Config tileConfig = Config.load(this);
+            // A layer between the glass and the content, so the icon and label stay on top of the wash.
+            tile.findViewById(R.id.wash).setBackground(tileWash(42f, Config.dockLightGlass(tileConfig, Config.dark(Config.PART_SUB)), tileConfig.dockOpacity));
+            if (blackTextOnWash(tileConfig)) {
+                ((TextView) tile.findViewById(R.id.title)).setTextColor(Color.BLACK);
+                TextView sub = tile.findViewById(R.id.subtitle);
+                if (sub != null) sub.setTextColor(Color.BLACK);
+                ((ImageView) tile.findViewById(R.id.icon)).setImageTintList(ColorStateList.valueOf(Color.BLACK));
+            }
+        }
         tile.setOnClickListener(v -> {
             popup.dismiss();
             action.run();
@@ -3482,12 +3649,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (200 * density));
-        if (dockRow && position < adapter.movableCount()) {
-            boolean inDock = position < COLUMNS;
-            addSettingsMenuRow(rows, popup, inDock ? R.string.tile_replace_in_dock : R.string.tile_add_to_dock,
-                    () -> startDockEditFor(key, inDock));
-        }
-        if (position < adapter.movableCount()) addSettingsMenuRow(rows, popup, R.string.tile_move, () -> {
+        // The same rows, icons and order as the menu in the apps grid (AppLibraryActivity.onTileLongPress): Rename,
+        // Move, Uninstall (red), App info. Every Home tile is a dock tile there, so no Hide row.
+        String label = adapter.labelAt(position);
+        addSettingsMenuRow(rows, popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label));
+        if (position < adapter.movableCount()) addSettingsMenuRow(rows, popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> {
             if (!beginReorder()) return;
             int at = adapter.positionOf(key);   // beginReorder can rebuild the tiles
             if (at < 0) return;
@@ -3495,11 +3661,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             pickUp(at);
             Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
         });
-        // Local patch: no "Remove from Home" row any more — Home is locked to dock_apps (AppAdapter.reload),
-        // so LibraryApps' removed-set no longer affects what shows; the row would do nothing visible.
+        Intent uninstall = SystemSettings.uninstall(this, pkg);
+        if (uninstall != null) addSettingsMenuRow(rows, popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> open(uninstall));
         // Some firmware has no App info page at all; a row that only toasts "can't open" helps nobody.
         Intent info = SystemSettings.appInfo(this, pkg);
-        if (info != null) addSettingsMenuRow(rows, popup, R.string.library_app_info, () -> open(info));
+        if (info != null) addSettingsMenuRow(rows, popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> open(info));
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
         // Dock tiles sit near the bottom of the screen: open the menu above the tile when it would not fit below.
@@ -3520,9 +3686,43 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rows.getChildAt(0).requestFocus();
     }
 
+    /** Rename (the same dialog as in the apps grid): the new name shows on Home and in the grid. */
+    private void showRenameDialog(String pkg, String currentLabel) {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setText(currentLabel);
+        input.setHint(R.string.library_rename_hint);
+        input.setSingleLine(true);
+        input.setSelectAllOnFocus(true);
+        int pad = Math.round(20 * density);
+        input.setPadding(pad, pad, pad, pad);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.library_rename)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    if (LibraryNames.save(this, pkg, input.getText().toString())) reloadApps(false);
+                    else Toast.makeText(this, R.string.library_save_failed, Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addSettingsMenuRow(rows, popup, title, 0, false, action);
+    }
+
+    private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, int iconRes, boolean danger, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        ImageView rowIcon = row.findViewById(R.id.icon);
+        if (iconRes != 0) {
+            rowIcon.setImageResource(iconRes);
+            rowIcon.setVisibility(View.VISIBLE);
+        } else {
+            rowIcon.setVisibility(View.GONE);
+        }
+        if (danger) {   // red like the Power tile's label (#ED3B30), focused or not
+            rowIcon.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFED3B30));
+            ((TextView) row.findViewById(R.id.title)).setTextColor(0xFFED3B30);
+        }
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         ((TextView) row.findViewById(R.id.title)).setText(title);

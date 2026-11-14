@@ -45,7 +45,7 @@
             android:ellipsize="end"
             android:textColor="#FFFFFFFF"
             android:textSize="13sp"
-            android:fontFamily="@string/font_body"
+            android:fontFamily="?attr/uiFontBody"
             android:visibility="gone" />
     </FrameLayout>
 
@@ -63,6 +63,6 @@
         android:translationY="-6dp"
         android:textColor="#F2FFFFFF"
         android:textSize="14sp"
-        android:fontFamily="@string/font_medium"
+        android:fontFamily="?attr/uiFontMedium"
         android:letterSpacing="0.02" />
 </FrameLayout>

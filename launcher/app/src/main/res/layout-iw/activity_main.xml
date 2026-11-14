@@ -59,7 +59,7 @@
                 android:singleLine="true"
                 android:textColor="#B3FFFFFF"
                 android:textSize="12sp"
-                android:fontFamily="@string/font_medium"
+                android:fontFamily="?attr/uiFontMedium"
                 android:letterSpacing="0.22"
                 android:textAllCaps="true" />
 
@@ -78,7 +78,7 @@
             android:singleLine="true"
             android:textColor="#FFFFFFFF"
             android:textSize="34sp"
-            android:fontFamily="@string/font_light"
+            android:fontFamily="?attr/uiFontLight"
             android:letterSpacing="-0.01"
             android:includeFontPadding="false" />
 
@@ -90,7 +90,7 @@
             android:singleLine="true"
             android:textColor="#99FFFFFF"
             android:textSize="12sp"
-            android:fontFamily="@string/font_medium"
+            android:fontFamily="?attr/uiFontMedium"
             android:letterSpacing="0.12" />
     </LinearLayout>
 
@@ -122,7 +122,7 @@
             android:gravity="right"
             android:textColor="#FFFFFFFF"
             android:textSize="48sp"
-            android:fontFamily="@string/font_light"
+            android:fontFamily="?attr/uiFontLight"
             android:letterSpacing="-0.02"
             android:includeFontPadding="false"
             android:singleLine="true" />
@@ -138,7 +138,7 @@
             android:singleLine="true"
             android:textColor="#B3FFFFFF"
             android:textSize="15sp"
-            android:fontFamily="@string/font_light"
+            android:fontFamily="?attr/uiFontLight"
             android:visibility="gone" />
 
         <LinearLayout
@@ -196,7 +196,7 @@
                         android:ellipsize="end"
                         android:textColor="#E6FFFFFF"
                         android:textSize="17sp"
-                        android:fontFamily="@string/font_regular"
+                        android:fontFamily="?attr/uiFontRegular"
                         android:letterSpacing="0.02"
                         android:includeFontPadding="false"
                         android:visibility="gone" />
@@ -212,7 +212,7 @@
                         android:format24Hour="@string/date_format"
                         android:textColor="#A6FFFFFF"
                         android:textSize="14sp"
-                        android:fontFamily="@string/font_regular"
+                        android:fontFamily="?attr/uiFontRegular"
                         android:letterSpacing="0.14"
                         android:textAllCaps="true" />
 
@@ -260,7 +260,7 @@
                         android:ellipsize="end"
                         android:textColor="#8CFFFFFF"
                         android:textSize="12sp"
-                        android:fontFamily="@string/font_medium"
+                        android:fontFamily="?attr/uiFontMedium"
                         android:letterSpacing="0"
                         android:textAllCaps="true" />
 
@@ -282,7 +282,7 @@
                             android:format24Hour=""
                             android:textColor="#B3FFFFFF"
                             android:textSize="15sp"
-                            android:fontFamily="@string/font_medium"
+                            android:fontFamily="?attr/uiFontMedium"
                             android:letterSpacing="0"
                             android:ellipsize="none"
                             android:textAllCaps="true" />
@@ -296,7 +296,7 @@
                             android:format24Hour="HH:mm"
                             android:textColor="#FFFFFFFF"
                             android:textSize="52sp"
-                            android:fontFamily="@string/font_light"
+                            android:fontFamily="?attr/uiFontLight"
                             android:letterSpacing="-0.04"
                             android:includeFontPadding="false" />
                     </LinearLayout>
@@ -321,7 +321,7 @@
                 android:ellipsize="end"
                 android:textColor="#D9FFFFFF"
                 android:textSize="14sp"
-                android:fontFamily="@string/font_medium"
+                android:fontFamily="?attr/uiFontMedium"
                 android:letterSpacing="0.04"
                 android:focusable="false"
                 android:visibility="gone" />
@@ -399,6 +399,40 @@
                 android:scrollbars="none"
                 android:descendantFocusability="afterDescendants" />
         </FrameLayout>
+    </LinearLayout>
+
+    <!-- Under the dock, when there are more apps than the dock holds (MainActivity.updateMoreAppsHint). -->
+    <LinearLayout
+        android:id="@+id/moreAppsHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="11dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:alpha="0"
+        android:visibility="gone"
+        android:importantForAccessibility="no">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="6dp"
+            android:alpha="0.55"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_chevron_down"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/more_apps_hint"
+            android:textColor="#8CFFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="?attr/uiFontMedium"
+            android:shadowColor="#33000000"
+            android:shadowRadius="3"
+            android:singleLine="true" />
     </LinearLayout>
 
     <!-- The single floating glass highlight that springs between tiles. -->

@@ -17,7 +17,7 @@ import android.widget.Toast;
  * task of its own, so the app behind keeps running and Back returns to it. Pressing Settings again
  * closes the panel.
  */
-public final class QuickSettingsActivity extends Activity {
+public final class QuickSettingsActivity extends UiActivity {
 
     @Override
     protected void onCreate(Bundle state) {

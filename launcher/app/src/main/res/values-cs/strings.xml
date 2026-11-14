@@ -36,8 +36,6 @@
     <string name="animations_state">Animace: %1$s</string>
     <string name="open_on_start_label">Otevřít po spuštění</string>
     <string name="open_on_start_state">Otevřít po spuštění: %1$s</string>
-    <string name="follow_theme">Podle motivu (zrušit volby na TV)</string>
-    <string name="follow_theme_hint">Použije aktuální motiv nebo vestavěné nastavení rozložení a animací. Nahrání nového motivu nebo jeho resetování také zruší volby provedené na televizi.</string>
     <string name="tv_settings">Systémová nastavení TV</string>
     <string name="on">Zapnuto</string>
     <string name="off">Vypnuto</string>

@@ -43,12 +43,12 @@ public final class SettingsValueRow extends TextView {
         paint.setColor(color);
         paint.setTextAlign(rtl ? Paint.Align.RIGHT : Paint.Align.LEFT);
         canvas.drawText(shownLabel, rtl ? end : start, baseline, paint);
-        paint.setColor((color & 0x00FFFFFF) | 0x9E000000);
+        paint.setColor((color & 0x00FFFFFF) | 0xCC000000);
         paint.setTextAlign(rtl ? Paint.Align.LEFT : Paint.Align.RIGHT);
         // The value is regular weight, only the label is bold.
         android.graphics.Typeface label_face = paint.getTypeface();
         boolean fake = paint.isFakeBoldText();
-        paint.setTypeface(UiFont.get(getContext(), R.string.font_regular));
+        paint.setTypeface(UiFont.themed(getContext(), R.attr.uiFontRegular, R.string.font_regular));
         paint.setFakeBoldText(false);
         canvas.drawText(shownValue, rtl ? start : end, baseline, paint);
         paint.setTypeface(label_face);

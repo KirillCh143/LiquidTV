@@ -203,6 +203,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final boolean showHiddenLibraryApps;
     private final List<Entry> items = new ArrayList<>();
 
+    /** Monochrome: the focused tile's outline is a plain 1dp white stroke at 15%, no gradient, glow or shader. */
+    private final boolean plainRim;
+    /** Frosted ice: the focused tile's outline is the gradient stroke alone, without the inner-glow shader. */
+    private final boolean strokeOnlyRim;
+
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg, boolean lockToDock, boolean tileShadow,
                boolean showHiddenLibraryApps) {
         this.ctx = ctx;
@@ -216,6 +221,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.libraryPreload = new HashSet<>(cfg.libraryApps);
         this.animations = cfg.animations;
+        this.plainRim = Config.BACKDROP_COLOR.equals(cfg.dockBackdrop);
+        this.strokeOnlyRim = Config.BACKDROP_BLUR.equals(cfg.dockBackdrop);
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
         // Local patch: the library tile at the end of the grid is off; the top-bar library_button stays as the
         // only way in, since cfg.appLibrary itself (tile_menu's Remove from Home, the top-bar button) stays on.
@@ -336,6 +343,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         // AppLibraryActivity) and the alphabetical fallback all compete for the same dockSize slots. Truncating
         // before the Default-home tile below, not after, keeps that tile outside the count it would otherwise
         // be cut off by.
+        candidateCount = fresh.size();
         if (lockToDock && fresh.size() > dockSize) fresh.subList(dockSize, fresh.size()).clear();
         // Retain the optional Default-home tile until dependent tile-ordering work is merged.
         if (showHomeSettings
@@ -359,6 +367,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         items.clear();
         items.addAll(fresh);
         notifyDataSetChanged();
+    }
+
+    /** How many apps there were before the dock took its dockSize (see reload). */
+    private int candidateCount;
+
+    /** Home only: there are more apps than the dock holds, so the apps grid below it has something to show. */
+    boolean hasMoreAppsThanDock() {
+        return lockToDock && candidateCount > dockSize;
     }
 
     /** A banner_* drawable bundled with the launcher, or null for none or a name that is not one. */
@@ -447,7 +463,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             iconLp.bottomMargin = 0;
             icon.setLayoutParams(iconLp);
         }
-        return new Holder(v, listener, animations, reducedMotion, restNameAlpha, focusOvershoot);
+        return new Holder(v, listener, animations, reducedMotion, restNameAlpha, focusOvershoot, plainRim, strokeOnlyRim);
     }
 
     @Override
@@ -502,7 +518,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.label.setText(e.label);
             h.label.setVisibility(uniformTiles ? View.GONE : View.VISIBLE);
         }
-        h.card.setOnClickListener(v -> launch(e));
+        h.card.setOnClickListener(v -> launch(e, v));
         h.card.setOnLongClickListener(v -> {
             if (tileMenu) {
                 int pos = h.getBindingAdapterPosition();
@@ -520,7 +536,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
-    private void launch(Entry e) {
+    private void launch(Entry e, View from) {
         if (e.kind == Entry.HOME_SETTINGS) {
             ctx.startActivity(new Intent(ctx, HomeSettingsActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -540,10 +556,42 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (ctx.getPackageManager().resolveActivity(byAction, 0) != null) i = byAction;
         }
         try {
-            ctx.startActivity(i);
+            // tvOS-style: the app's window grows out of the tile (the system plays it; needs no permission).
+            android.os.Bundle options = null;
+            if (animations && !reducedMotion && from != null && from.getWidth() > 0) {
+                options = android.app.ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.getWidth(), from.getHeight()).toBundle();
+                returnPkg = e.pkg;
+            }
+            ctx.startActivity(i, options);
             if (cinematic) LastOpened.record(ctx, e.pkg);
         } catch (Exception ex) {
             Toast.makeText(ctx, ctx.getString(R.string.cant_open, e.label), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** The package whose tile was launched last (with the grow-out animation), for {@link #playReturn}. */
+    private String returnPkg;
+
+    /** Back on Home after an app: that tile's picture settles in, a short ease from a little smaller. The system
+     *  cannot shrink another app's window back into a tile, so this is the return half of the effect. */
+    void playReturn(RecyclerView list) {
+        String pkg = returnPkg;
+        returnPkg = null;
+        if (pkg == null || !animations || reducedMotion) return;
+        for (int p = 0; p < items.size(); p++) {
+            if (!items.get(p).pkg.equals(pkg)) continue;
+            RecyclerView.ViewHolder vh = list.findViewHolderForAdapterPosition(p);
+            if (!(vh instanceof Holder)) return;
+            Holder h = (Holder) vh;
+            for (View part : new View[]{h.icon, h.banner, h.label}) {
+                if (part.getVisibility() != View.VISIBLE) continue;
+                part.setScaleX(0.84f);
+                part.setScaleY(0.84f);
+                part.setAlpha(0.55f);
+                part.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(340)
+                        .setInterpolator(new DecelerateInterpolator(1.6f)).start();
+            }
+            return;
         }
     }
 
@@ -867,8 +915,156 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Local patch: the corner radius of a tile at its layout size, in px. A focused tile (zoomed x FOCUS_SCALE)
      *  shows 46 px corners; an unfocused one (x REST_SCALE) shows 46 * REST_SCALE / FOCUS_SCALE, i.e. proportionally less. */
+    /** Tile corner radius in px (Config.tileRadius, set whenever Config loads). */
+    static volatile int tileRadiusPx = Config.DEFAULT_TILE_RADIUS;
+
     static float cornerRadius(int tileWidthPx, float density) {
-        return 46f / FOCUS_SCALE;
+        return tileRadiusPx;
+    }
+
+    /** The focused tile's edge light: an inner glow (a wide, blurred white stroke on the edge, clipped to the tile, so
+     *  the light fades inwards like Photoshop's Inner Glow; Android 9+) under a 1dp rim. Both are bright at the top
+     *  left and fade towards the bottom right, along a 60 degree line (the unscaled tile; the focus zoom grows them). */
+    /** Comparison switch: the inner glow as an AGSL shader (Android 13+, distance to the rounded edge) instead of the
+     *  blurred stroke. Older versions always use the blurred stroke. */
+    static final boolean GLOW_SHADER = true;
+
+    /** The glow as AGSL: brightness from the distance to the tile's rounded edge, falling off over {@code depth}, scaled
+     *  along the 60 degree line by four stops (alpha at 0, 35, 75 and 100%). */
+    private static final String GLOW_AGSL = ""
+            + "uniform float2 center;\n"
+            + "uniform float2 halfSize;\n"
+            + "uniform float radius;\n"
+            + "uniform float depth;\n"
+            + "uniform float falloff;\n"
+            + "uniform float2 dir;\n"
+            + "uniform float reach;\n"
+            + "uniform float4 stops;\n"
+            + "half4 main(float2 fragCoord) {\n"
+            + "    float2 p = fragCoord - center;\n"
+            + "    float2 q = abs(p) - halfSize + radius;\n"
+            + "    float d = -(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius);\n"   // px inside the edge
+            + "    if (d < 0.0) return half4(0.0);\n"
+            + "    float t = 1.0 - clamp(d / depth, 0.0, 1.0);\n"
+            + "    float glow = pow(t, falloff);\n"
+            + "    float g = clamp(dot(p, dir) / reach * 0.5 + 0.5, 0.0, 1.0);\n"
+            + "    float a = g < 0.35 ? mix(stops.x, stops.y, g / 0.35)\n"
+            + "            : g < 0.75 ? mix(stops.y, stops.z, (g - 0.35) / 0.4)\n"
+            + "            : mix(stops.z, stops.w, (g - 0.75) / 0.25);\n"
+            + "    float v = glow * a;\n"
+            + "    return half4(v, v, v, v);\n"   // premultiplied white
+            + "}\n";
+
+    /** Monochrome's outline: one 1dp stroke in GlassRim.SOLID (white, 15%), nothing else. */
+    private static final class PlainRimDrawable extends android.graphics.drawable.Drawable {
+        private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.RectF rect = new android.graphics.RectF();
+        private final float density;
+
+        PlainRimDrawable(float density) {
+            this.density = density;
+            paint.setStyle(android.graphics.Paint.Style.STROKE);
+            paint.setStrokeWidth(density);
+            paint.setColor(GlassRim.SOLID);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.isEmpty()) return;
+            float inset = density / 2f;
+            rect.set(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset);
+            float radius = Math.max(0f, cornerRadius(b.width(), density) - inset);
+            canvas.drawRoundRect(rect, radius, radius, paint);
+        }
+
+        @Override public void setAlpha(int alpha) {}
+        @Override public void setColorFilter(android.graphics.ColorFilter filter) {}
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+    }
+
+    private static final class RimDrawable extends android.graphics.drawable.Drawable {
+        private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Paint glow = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.RectF rect = new android.graphics.RectF();
+        private final android.graphics.RectF edge = new android.graphics.RectF();
+        private final android.graphics.Path clip = new android.graphics.Path();
+        private final float stroke;
+        private final boolean hasGlow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
+        private final boolean useShader = GLOW_SHADER && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU;
+        private final float density;
+        private android.graphics.RuntimeShader glowShader;
+
+        private final boolean strokeOnly;
+
+        RimDrawable(float density, boolean strokeOnly) {
+            this.density = density;
+            this.strokeOnly = strokeOnly;
+            stroke = 1f * density;
+            paint.setStyle(android.graphics.Paint.Style.STROKE);
+            paint.setStrokeWidth(stroke);
+            glow.setStyle(android.graphics.Paint.Style.STROKE);
+            glow.setStrokeWidth(2f * density);
+            if (hasGlow) glow.setMaskFilter(new android.graphics.BlurMaskFilter(5f * density, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        }
+
+        private android.graphics.LinearGradient gradient(android.graphics.Rect b, int[] colors) {
+            double angle = Math.toRadians(60);   // measured from the horizontal, downwards
+            float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
+            float cx = b.exactCenterX(), cy = b.exactCenterY();
+            float reach = (b.width() * Math.abs(dx) + b.height() * Math.abs(dy)) / 2f;   // the line spans the whole tile
+            return new android.graphics.LinearGradient(cx - dx * reach, cy - dy * reach, cx + dx * reach, cy + dy * reach,
+                    colors, new float[]{0f, 0.35f, 0.75f, 1f}, android.graphics.Shader.TileMode.CLAMP);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.isEmpty()) return;
+            float radius = cornerRadius(b.width(), 1f);
+            if (strokeOnly) {
+                // the gradient stroke below is all there is: no glow, no shader
+            } else if (useShader) {
+                drawShaderGlow(canvas, b, radius);
+            } else if (hasGlow) {
+                edge.set(b.left, b.top, b.right, b.bottom);
+                clip.rewind();
+                clip.addRoundRect(edge, radius, radius, android.graphics.Path.Direction.CW);
+                glow.setShader(gradient(b, new int[]{0x66FFFFFF, 0x1AFFFFFF, 0x00FFFFFF, 0x33FFFFFF}));
+                int saved = canvas.save();
+                canvas.clipPath(clip);
+                canvas.drawRoundRect(edge, radius, radius, glow);
+                canvas.restoreToCount(saved);
+            }
+            float half = stroke / 2f;
+            rect.set(b.left + half, b.top + half, b.right - half, b.bottom - half);
+            paint.setShader(gradient(b, new int[]{0x7AFFFFFF, 0x0DFFFFFF, 0x00FFFFFF, 0x33FFFFFF}));
+            float r = Math.max(0f, radius - half);
+            canvas.drawRoundRect(rect, r, r, paint);
+        }
+
+        @android.annotation.TargetApi(Build.VERSION_CODES.TIRAMISU)
+        private void drawShaderGlow(android.graphics.Canvas canvas, android.graphics.Rect b, float radius) {
+            if (glowShader == null) glowShader = new android.graphics.RuntimeShader(GLOW_AGSL);
+            double angle = Math.toRadians(60);
+            float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
+            glowShader.setFloatUniform("center", b.exactCenterX(), b.exactCenterY());
+            glowShader.setFloatUniform("halfSize", b.width() / 2f, b.height() / 2f);
+            glowShader.setFloatUniform("radius", radius);
+            glowShader.setFloatUniform("depth", 6f * density);      // how far the light reaches in
+            glowShader.setFloatUniform("falloff", 2f);              // 1 = linear, higher = tighter to the edge
+            glowShader.setFloatUniform("dir", dx, dy);
+            glowShader.setFloatUniform("reach", b.width() * Math.abs(dx) + b.height() * Math.abs(dy));
+            glowShader.setFloatUniform("stops", 0.40f, 0.10f, 0f, 0.20f);
+            shaderPaint.setShader(glowShader);
+            canvas.drawRoundRect(b.left, b.top, b.right, b.bottom, radius, radius, shaderPaint);
+        }
+
+        private final android.graphics.Paint shaderPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); glow.setAlpha(alpha); shaderPaint.setAlpha(alpha); }
+        @Override public void setColorFilter(android.graphics.ColorFilter filter) { paint.setColorFilter(filter); glow.setColorFilter(filter); }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
     }
 
     static final class Holder extends RecyclerView.ViewHolder {
@@ -886,7 +1082,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final boolean overshoot;
 
         Holder(View v, TileListener listener, boolean animations,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, boolean plainRim, boolean strokeOnlyRim) {
             super(v);
             card = v.findViewById(R.id.card);
             cardBackground = card.getBackground();
@@ -908,6 +1104,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             });
             card.setClipToOutline(true);
+            // tvOS-style rim on the focused tile: a thin stroke whose light fades down the tile.
+            android.graphics.drawable.StateListDrawable rim = new android.graphics.drawable.StateListDrawable();
+            rim.addState(new int[]{android.R.attr.state_focused}, plainRim ? new PlainRimDrawable(density) : new RimDrawable(density, strokeOnlyRim));
+            rim.addState(new int[]{}, new android.graphics.drawable.ColorDrawable(0));
+            if (Config.tileOutline(v.getContext())) card.setForeground(rim);   // Launcher settings, "App outline"
             // Local patch: AppLibraryActivity's drop shadow (tileShadow, see onBindViewHolder) read as too
             // strong/hard-edged against its light wallpaper+wash background at the system's default shadow
             // colour — a lighter, more diffuse shadow colour instead, elevation unchanged. No effect on Home

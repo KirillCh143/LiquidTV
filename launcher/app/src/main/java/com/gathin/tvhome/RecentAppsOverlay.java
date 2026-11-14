@@ -183,7 +183,7 @@ final class RecentAppsOverlay {
             layer.addView(picture, new FrameLayout.LayoutParams(-1, -1));
         }
         View wash = new View(c);
-        wash.setBackgroundColor(0xFFFFFFFF);
+        wash.setBackgroundColor(Config.dark(Config.PART_GRID) ? 0xFF000000 : 0xFFFFFFFF);
         wash.setAlpha(SCRIM_ALPHA);
         layer.addView(wash, new FrameLayout.LayoutParams(-1, -1));
 
@@ -246,7 +246,7 @@ final class RecentAppsOverlay {
         TextView t = new TextView(c);
         t.setText(s);
         t.setTextColor(color);
-        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        t.setTypeface(UiFont.themed(t.getContext(), R.attr.uiFontMedium, R.string.font_medium));
         t.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp * density);
         return t;
     }

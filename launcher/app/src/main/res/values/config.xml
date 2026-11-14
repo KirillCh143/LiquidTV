@@ -244,7 +244,7 @@
          layer), "blur" (a real frosted-glass blur of the wallpaper, API 31+) or "liquid" (the same blur plus a
          refractive edge, API 33+). "blur" and "liquid" fall back a tier on an older device or with wallpapers
          off. Can also be set with "dock_backdrop" in a theme's config.json. -->
-    <string name="dock_backdrop">blur</string>
+    <string name="dock_backdrop">color</string>
     <!-- Every app in one row: the dock apps first, the rest after them, and the row scrolls sideways when focus
          reaches its edge. Needs dock_row. Can also be set with "single_row" in a theme. -->
     <bool name="single_row">false</bool>
@@ -292,7 +292,7 @@
     <bool name="always_show_names">false</bool>
     <!-- Wallpapers decode as RGB_565 (2 bytes a pixel, 4 MB at 1080p), which bands dark gradients such as a night
          sky, most of all under wallpaper_dim. true decodes them in 32-bit colour: 8 MB, for TVs with 2 GB or more. -->
-    <bool name="wallpaper_true_color">false</bool>
+    <bool name="wallpaper_true_color">true</bool>
     <!-- Rotating wallpapers: show each picture's name under the top-right buttons, from a captions.txt next to the
          pictures in wallpapers/ ("01-dusk.jpg<TAB>Dusk over the peaks", one per line). A picture without a line
          shows no name. Can also be set with "wallpaper_captions": true in a theme's config.json. -->

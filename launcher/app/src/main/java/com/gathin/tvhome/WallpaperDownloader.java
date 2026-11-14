@@ -55,9 +55,14 @@ final class WallpaperDownloader {
                     String name = paths[i].substring(paths[i].lastIndexOf('/') + 1);
                     final int index = i + 1, count = total;
                     ui.post(() -> { if (!cancel.get()) listener.onProgress(index, count, name); });
-                    File target = new File(dir, name);
+                    // wallpapers/<Group>/<file> keeps its group folder; a flat copy from an older download moves in.
+                    String[] parts = paths[i].split("/");
+                    File folder = parts.length >= 3 ? new File(dir, parts[1]) : dir;
+                    folder.mkdirs();
+                    if (folder != dir) new File(dir, name).delete();
+                    File target = new File(folder, name);
                     if (target.isFile() && target.length() == sizes[i]) { skipped++; continue; }
-                    File part = new File(dir, name + ".part");
+                    File part = new File(folder, name + ".part");
                     HttpURLConnection c = open("https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + paths[i]);
                     try (InputStream in = c.getInputStream(); OutputStream out = new java.io.FileOutputStream(part)) {
                         byte[] buf = new byte[16384];
@@ -82,7 +87,7 @@ final class WallpaperDownloader {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(15000);
         c.setReadTimeout(30000);
-        c.setRequestProperty("User-Agent", "LiquidTV");
+        c.setRequestProperty("User-Agent", "liquidOS");
         if (c.getResponseCode() != 200) throw new java.io.IOException("HTTP " + c.getResponseCode());
         return c;
     }

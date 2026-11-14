@@ -116,8 +116,12 @@ final class WallpaperPlayer {
         // picture instead of resuming a filename that belonged to the previous one.
         String collection = collectionKey(files);
         if (!collection.equals(preferences.getString("collection", ""))) {
-            preferences.edit().putString("collection", collection)
-                    .remove("image").remove("changed").apply();
+            SharedPreferences.Editor reset = preferences.edit().putString("collection", collection);
+            // A picture that is still in the new collection stays; one that is not is replaced from it.
+            if (WallpaperRotation.find(files, preferences.getString("image", "")) == null) {
+                reset.remove("image").remove("changed");
+            }
+            reset.apply();
         }
         DisplayMetrics metrics = context.getResources().getDisplayMetrics();
         width = metrics.widthPixels;
@@ -374,7 +378,8 @@ final class WallpaperPlayer {
         List<File> playable = playable();
         File selected = WallpaperRotation.find(playable, previous);
         long changed = preferences.getLong("changed", 0);
-        if (selected == null || WallpaperRotation.due(changed, System.currentTimeMillis(), interval)) {
+        // The minute tick can land a moment before the interval is up, which would wait a whole extra minute.
+        if (selected == null || WallpaperRotation.due(changed, System.currentTimeMillis() + 15_000, interval)) {
             selected = WallpaperRotation.pick(playable, previous, order, random);
         }
         if (selected == null || selected.getName().equals(displayed)) return;
@@ -422,7 +427,7 @@ final class WallpaperPlayer {
         text.setFocusable(false);
         text.setAlpha(0f);
         try {
-            text.setTypeface(UiFont.get(context, R.string.font_regular));
+            text.setTypeface(UiFont.themed(context, R.attr.uiFontRegular, R.string.font_regular));
         } catch (Exception ignored) {
             // the system font is fine
         }
@@ -462,16 +467,38 @@ final class WallpaperPlayer {
         return key.toString();
     }
 
-    /** Puts a picture on screen and releases the previous one after a frame has drawn the new one. */
+    /** How long a new picture takes to appear over the old one. */
+    private static final int FADE_MS = 900;
+
+    /** Puts a picture on screen and releases the previous one once it is no longer drawn. A change from one picture
+     *  to another fades the new one in over the old; the first picture appears at once. */
     private void show(Bitmap bitmap) {
         Bitmap old = current;
         current = bitmap;
         // The wallpaper covers the whole root; avoid drawing the fallback colour under it.
         root.setBackground(null);
+        if (old != null && old != bitmap && image.getDrawable() != null) {
+            fade(image, old, bitmap);
+            if (blurImage != null) fade(blurImage, old, bitmap);
+            if (buttonsBlurImage != null) fade(buttonsBlurImage, old, bitmap);
+            image.postDelayed(old::recycle, FADE_MS + 400);
+            return;
+        }
         image.setImageBitmap(bitmap);
         if (blurImage != null) blurImage.setImageBitmap(bitmap);
         if (buttonsBlurImage != null) buttonsBlurImage.setImageBitmap(bitmap);
         if (old != null && old != bitmap) image.postDelayed(old::recycle, 500);
+    }
+
+    private void fade(ImageView view, Bitmap from, Bitmap to) {
+        android.content.res.Resources res = root.getResources();
+        android.graphics.drawable.TransitionDrawable fade = new android.graphics.drawable.TransitionDrawable(
+                new android.graphics.drawable.Drawable[]{new android.graphics.drawable.BitmapDrawable(res, from),
+                        new android.graphics.drawable.BitmapDrawable(res, to)});
+        view.setImageDrawable(fade);
+        fade.startTransition(FADE_MS);
+        // When the fade is over, hold the new picture alone, so the old one can be released.
+        view.postDelayed(() -> { if (current == to) view.setImageBitmap(to); }, FADE_MS + 100);
     }
 
     private Bitmap decode(File file) {
@@ -491,7 +518,10 @@ final class WallpaperPlayer {
                 options.inDensity = scale[0];
                 options.inTargetDensity = scale[1];
             }
-            options.inPreferredConfig = bitmapConfig;
+            // The built-in gradients are decoded in full colour whatever wallpaper_true_color says: 16 bits turn their
+            // soft transitions into visible bands; photographs hide that, so they keep the lighter format.
+            boolean gradient = file.getName().startsWith("builtin-") || file.getName().startsWith("default-wallpaper");
+            options.inPreferredConfig = gradient ? Bitmap.Config.ARGB_8888 : bitmapConfig;
             options.inMutable = dimColor != 0;
             Bitmap decoded = BitmapFactory.decodeFile(file.getPath(), options);
             if (decoded == null) return null;

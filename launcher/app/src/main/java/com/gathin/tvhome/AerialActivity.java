@@ -17,16 +17,28 @@ import android.widget.TextView;
  * list at all (no cache, no network) it shows the launcher's clock instead.
  */
 public class AerialActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Lang.wrap(base));
+    }
+
 
     private AerialPlayer player;
+    /** Launcher settings, "Screensaver type" = Clock: the offline clock on the wallpaper instead of the video. */
+    private LiquidClockLayout clock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.dream_aerial);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE);
+        if (LiquidClockLayout.selected(this)) {
+            clock = new LiquidClockLayout(this);
+            setContentView(clock);
+            return;
+        }
+        setContentView(R.layout.dream_aerial);
         player = new AerialPlayer(this, (TextureView) findViewById(R.id.aerialVideo),
                 (TextView) findViewById(R.id.aerialLabel), () -> {
                     startActivity(new Intent(this, ClockActivity.class));
@@ -37,12 +49,12 @@ public class AerialActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        player.start();
+        if (clock != null) clock.start(); else player.start();
     }
 
     @Override
     protected void onPause() {
-        player.stop();
+        if (clock != null) clock.stop(); else player.stop();
         super.onPause();
         finish();   // never left behind in the back stack
     }

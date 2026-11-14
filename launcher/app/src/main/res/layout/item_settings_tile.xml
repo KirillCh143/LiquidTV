@@ -20,6 +20,14 @@
         android:scaleType="centerCrop"
         android:importantForAccessibility="no" />
 
+    <!-- The dock's wash (MainActivity.addSettingsTile), above the glass layer and under the icon and label. -->
+    <View
+        android:id="@+id/wash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:duplicateParentState="true"
+        android:importantForAccessibility="no" />
+
     <!-- duplicateParentState, here and on icon/title below: pill_text's focused-state black only ever applies
          if a view's own drawable state includes it — of these three, only the tile (their ancestor) is
          actually focusable, so each one has to pass its parent's state down to the next. -->
@@ -46,7 +54,7 @@
             android:layout_marginTop="-4dp"
             android:textColor="@drawable/power_text"
             android:textSize="14sp"
-            android:fontFamily="@string/font_medium"
+            android:fontFamily="?attr/uiFontMedium"
             android:gravity="center"
             android:duplicateParentState="true"
             android:maxLines="2" />

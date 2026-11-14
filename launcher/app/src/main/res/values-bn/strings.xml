@@ -35,8 +35,6 @@
     <string name="animations_state">অ্যানিমেশন: %1$s</string>
     <string name="open_on_start_label">চালু হলে খুলুন</string>
     <string name="open_on_start_state">চালু হলে খুলুন: %1$s</string>
-    <string name="follow_theme">থিম অনুসরণ করুন (টিভিতে করা পছন্দ মুছে দিন)</string>
-    <string name="follow_theme_hint">বর্তমান থিম বা বিল্ট-ইন লেআউট ও মোশন সেটিংস ব্যবহার করে। থিম পাঠালে বা রিসেট করলেও টিভিতে করা আপনার পছন্দ মুছে যায়।</string>
     <string name="tv_settings">টিভির সিস্টেম সেটিংস</string>
     <string name="quick_picture">ডিসপ্লে</string>
     <string name="quick_network">নেটওয়ার্ক</string>

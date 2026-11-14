@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The sidebar icons: white when the entry is focused (on its black chip) or the open page, a little dimmer otherwise. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FFFFFFFF" />
+    <item android:state_selected="true" android:color="#FFFFFFFF" />
+    <item android:color="#FFFFFFFF" />
+</selector>

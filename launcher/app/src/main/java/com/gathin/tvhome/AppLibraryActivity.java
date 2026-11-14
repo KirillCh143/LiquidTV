@@ -67,7 +67,7 @@ import java.util.Set;
  * the grid fades in under it and the blur/wash settle in, all in one motion; Up from the dock row or the row
  * right under it (onTileVerticalKey), or Back, plays the same motion in reverse and returns to Home (runExit).
  */
-public class AppLibraryActivity extends Activity implements AppAdapter.TileListener {
+public class AppLibraryActivity extends UiActivity implements AppAdapter.TileListener {
     static final String EXTRA_WALLPAPER = "com.gathin.tvhome.extra.LIBRARY_WALLPAPER";
     static final String EXTRA_DOCK_Y = "com.gathin.tvhome.extra.LIBRARY_DOCK_Y";
     /** Local patch: the dock position Down was pressed from (MainActivity.onLibraryRequested) — the entrance
@@ -79,6 +79,8 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
     static final String EXTRA_EXIT_COLUMN = "com.gathin.tvhome.extra.LIBRARY_EXIT_COLUMN";
     private static final long TRANSITION_MS = 380;
     private static final float SCRIM_ALPHA = 0.1f;
+    /** Monochrome: the wash over the wallpaper (white 25%, or black 65% in the dark scheme). */
+    private float scrimAlpha = SCRIM_ALPHA;
     /** wallpaperBlur's own blur radius (dp) — dockGlass matches it so the dock reads as the same backdrop, just
      *  as glass, instead of a sharper "hole" standing out against the rest of the heavily blurred screen. */
     private static final float BACKDROP_BLUR_SIGMA_DP = 36f;
@@ -141,6 +143,8 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         wallpaperSharp = findViewById(R.id.wallpaperSharp);
         wallpaperBlur = findViewById(R.id.wallpaperBlur);
         scrim = findViewById(R.id.scrim);
+        if (Config.BACKDROP_COLOR.equals(cfg.dockBackdrop)) scrimAlpha = Config.dark(Config.PART_GRID) ? 0.65f : 0.35f;   // black wash 65% in the dark scheme, white 35% in the light one
+        if (Config.dark(Config.PART_GRID)) scrim.setBackgroundColor(0xFF000000);   // dark colour scheme: a black wash, not white
         dockGlass = findViewById(R.id.dockGlass);
         loadWallpaper();
 
@@ -174,8 +178,14 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
             dockGlass.invalidateOutline();
             dockGlass.invalidate();
         } : null;
-        if (cfg.dockRow) grid.addItemDecoration(new DockDecoration(columns, density, false, cfg.alwaysShowNames,
-                cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding, false, false, dockMask));
+        if (cfg.dockRow) {
+            DockDecoration dockDecoration = new DockDecoration(columns, density, false, cfg.alwaysShowNames,
+                    cfg.dockOpacity, Config.dockLightGlass(cfg), cfg.dockEvenPadding, false, false, dockMask);
+            dockDecoration.setRim(dockGlassReady && Config.BACKDROP_BLUR.equals(cfg.dockBackdrop));
+            dockDecoration.setSolidAtFull(Config.BACKDROP_COLOR.equals(cfg.dockBackdrop));
+            dockDecoration.setSolidRim(Config.BACKDROP_COLOR.equals(cfg.dockBackdrop));
+            grid.addItemDecoration(dockDecoration);
+        }
         adapter = new AppAdapter(this, this, columns, cfg, false, true, showHidden);
         // Local patch: this screen's own adapter instance is fresh every time it opens, with no memory of a
         // previous session's drag-reorder (endReorderSession) — without reading the saved order back here too,
@@ -265,7 +275,7 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         dockGlass.animate().alpha(1f).translationY(0f).setDuration(TRANSITION_MS)
                 .setInterpolator(new DecelerateInterpolator(1.4f)).start();
         wallpaperBlur.animate().alpha(1f).setDuration(TRANSITION_MS).withEndAction(() -> wallpaperSharp.setVisibility(View.GONE)).start();
-        scrim.animate().alpha(SCRIM_ALPHA).setDuration(TRANSITION_MS).start();
+        scrim.animate().alpha(scrimAlpha).setDuration(TRANSITION_MS).start();
         for (int i = 0; i < grid.getChildCount(); i++) {
             View child = grid.getChildAt(i);
             RecyclerView.ViewHolder vh = grid.getChildViewHolder(child);
@@ -462,7 +472,8 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         Bitmap bitmap = decodeForScreen(this, new File(path));
         if (bitmap == null) return;
         wallpaperSharp.setImageBitmap(bitmap);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        boolean flat = Config.BACKDROP_COLOR.equals(Config.load(this).dockBackdrop);   // Monochrome: no blur anywhere
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !flat) {
             wallpaperBlur.setImageBitmap(bitmap);
             float sigma = BACKDROP_BLUR_SIGMA_DP * density;
             wallpaperBlur.setRenderEffect(RenderEffect.createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP));
@@ -489,10 +500,11 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         // the bare wallpaper, nothing else washes it, but here the wash is what makes the rest of the screen
         // read as "this same backdrop, softened"; without it dockGlass's own sharper, more saturated blur
         // looked like a hole cut through the washed-out background around it.
+        float washLift = Config.dark(Config.PART_GRID) ? 0f : 255 * SCRIM_ALPHA;   // dark colour scheme: washed toward black
         ColorMatrix whiteWash = new ColorMatrix(new float[]{
-                1 - SCRIM_ALPHA, 0, 0, 0, 255 * SCRIM_ALPHA,
-                0, 1 - SCRIM_ALPHA, 0, 0, 255 * SCRIM_ALPHA,
-                0, 0, 1 - SCRIM_ALPHA, 0, 255 * SCRIM_ALPHA,
+                1 - SCRIM_ALPHA, 0, 0, 0, washLift,
+                0, 1 - SCRIM_ALPHA, 0, 0, washLift,
+                0, 0, 1 - SCRIM_ALPHA, 0, washLift,
                 0, 0, 0, 1, 0});
         vibrancyMatrix.postConcat(whiteWash);
         RenderEffect vibrancyEffect = RenderEffect.createColorFilterEffect(new ColorMatrixColorFilter(vibrancyMatrix));
@@ -683,18 +695,19 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel);
-        addMenuRow(rows, popup, R.string.library_rename, () -> showRenameDialog(pkg, label, position));
+        addMenuRow(rows, popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label, position));
         String key = adapter.keyAt(position);
-        if (key != null) addMenuRow(rows, popup, R.string.tile_move, () -> requestMove(key));
+        if (key != null) addMenuRow(rows, popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> requestMove(key));
         if (!isDock) {
             boolean hidden = hiddenSet.contains(pkg);
             addMenuRow(rows, popup, hidden ? R.string.library_unhide : R.string.library_hide,
+                    hidden ? R.drawable.ic_menu_show : R.drawable.ic_menu_hide, false,
                     () -> toggleHidden(pkg, !hidden, position));
         }
         Intent uninstall = SystemSettings.uninstall(this, pkg);
-        if (uninstall != null) addMenuRow(rows, popup, R.string.library_uninstall, () -> openExternal(uninstall, label));
+        if (uninstall != null) addMenuRow(rows, popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> openExternal(uninstall, label));
         Intent info = SystemSettings.appInfo(this, pkg);
-        if (info != null) addMenuRow(rows, popup, R.string.library_app_info, () -> openExternal(info, label));
+        if (info != null) addMenuRow(rows, popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> openExternal(info, label));
         showMenu(popup, panel, card);
     }
 
@@ -758,8 +771,22 @@ public class AppLibraryActivity extends Activity implements AppAdapter.TileListe
     }
 
     private void addMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addMenuRow(rows, popup, title, 0, false, action);
+    }
+
+    private void addMenuRow(LinearLayout rows, PopupWindow popup, int title, int iconRes, boolean danger, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        ImageView rowIcon = row.findViewById(R.id.icon);
+        if (iconRes != 0) {
+            rowIcon.setImageResource(iconRes);
+            rowIcon.setVisibility(View.VISIBLE);
+        } else {
+            rowIcon.setVisibility(View.GONE);
+        }
+        if (danger) {   // red like the Power tile's label (#ED3B30), focused or not
+            rowIcon.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFED3B30));
+            ((TextView) row.findViewById(R.id.title)).setTextColor(0xFFED3B30);
+        }
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         ((TextView) row.findViewById(R.id.title)).setText(title);

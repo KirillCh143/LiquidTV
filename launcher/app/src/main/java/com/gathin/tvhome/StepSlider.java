@@ -103,7 +103,7 @@ public final class StepSlider extends View {
         rect.set(x - w / 2f, cy - h / 2f, x + w / 2f, cy + h / 2f);
         canvas.drawRoundRect(rect, h / 2f, h / 2f, paint);
         if (formatter != null) {
-            if (valueFace == null) valueFace = UiFont.get(getContext(), R.string.font_medium);
+            if (valueFace == null) valueFace = UiFont.themed(getContext(), R.attr.uiFontMedium, R.string.font_medium);
             paint.setTypeface(valueFace);
             paint.setFakeBoldText(true);
             paint.setTextSize(17 * density);

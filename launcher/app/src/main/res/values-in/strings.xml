@@ -38,8 +38,6 @@
     <string name="animations_state">Animasi: %1$s</string>
     <string name="open_on_start_label">Buka saat mulai</string>
     <string name="open_on_start_state">Buka saat mulai: %1$s</string>
-    <string name="follow_theme">Ikuti tema (atur ulang pilihan di TV)</string>
-    <string name="follow_theme_hint">Menggunakan tema saat ini atau pengaturan tata letak dan gerakan bawaan. Memasang atau mengatur ulang tema juga menghapus pilihan di TV Anda.</string>
     <string name="tv_settings">Setelan Sistem TV</string>
     <string name="quick_picture">Tampilan</string>
     <string name="quick_network">Jaringan</string>

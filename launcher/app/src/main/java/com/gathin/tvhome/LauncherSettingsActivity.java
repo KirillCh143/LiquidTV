@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,11 +20,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /** Remote-friendly settings owned by the launcher; system settings stay one row away. */
-public final class LauncherSettingsActivity extends Activity {
+public final class LauncherSettingsActivity extends UiActivity {
     private SharedPreferences choices;
-    private TextView columnsChoice, dockOpacityChoice, dockBlurChoice;
+    private TextView colorSchemeChoice, tileRadiusChoice, columnsChoice, dockOpacityChoice, dockBlurChoice;
     /** 0 to 100 in steps of 10. */
     private static final int[] DOCK_OPACITIES = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
     /** The Gaussian blur's sigma (dp), 0 to 20 in steps of 1. */
@@ -31,22 +33,65 @@ public final class LauncherSettingsActivity extends Activity {
     private static final String[] BACKDROPS = {Config.BACKDROP_COLOR, Config.BACKDROP_BLUR, Config.BACKDROP_LIQUID};
     private TextView dockBackdropChoice;
     private final TextView[] backdropChoices = new TextView[BACKDROPS.length];
+    /** The backdrop rows' names without the "(Android N and up)" note, for the value shown on the Dock row. */
+    private final String[] backdropNames = new String[BACKDROPS.length];
+
+    /** Appends the Android-version note to a backdrop row, in regular weight (the row itself is bold). */
+    /** A backdrop's row, with its description and the Android version it needs in a hint under it (like the backup
+     *  hint in About). A backdrop this device cannot show (minSdk above the running Android) is dimmed, with its hint,
+     *  and cannot be focused or chosen. */
+    private void describeBackdrop(TextView row, int hintId, int descRes, int requirementRes, int minSdk) {
+        String name = row.getText().toString();
+        for (int i = 0; i < backdropChoices.length; i++) if (backdropChoices[i] == row) backdropNames[i] = name;
+        TextView hint = findViewById(hintId);
+        hint.setText(getString(descRes) + (requirementRes != 0 ? "\n" + getString(requirementRes) : ""));
+        if (android.os.Build.VERSION.SDK_INT < minSdk) {
+            row.setEnabled(false);
+            row.setFocusable(false);
+            row.setClickable(false);
+            row.setAlpha(0.4f);
+            hint.setAlpha(0.4f);
+        }
+    }
     private TextView wallpaperChoice;
     private TextView animationsChoice;
-    private TextView followThemeChoice;
     private TextView openOnStartChoice;
+    private TextView languageChoice, fontChoice;
     /** Local patch, not upstream: whether AppLibraryActivity's catalogue shows apps hidden with its own
      *  "Hide app" tile action (library_hidden.txt) — off by default, so a hide stays hidden until asked for. */
-    private TextView libraryShowHiddenChoice;
+    private TextView libraryShowHiddenChoice, tileOutlineChoice;
+    /** Slideshow parameters; stored only, nothing reads them yet. */
+    private TextView aboutBackupChoice, hiddenAppsChoice, profileNameChoice, profileAvatarChoice, sleepTimerChoice, screensaverUseChoice;
+    private final java.util.Set<String> hiddenNow = new java.util.HashSet<>();
+    private TextView slideshowChoice, slideshowIntervalChoice, slideshowYes, slideshowNo, slideshowCollectionChoice, screensaverChoice;
+    /** What the two tiles of the shared two-choice sub-page mean: 0 Slideshow Yes/No, 1 Screensaver type. */
+    private int twoChoiceMode;
+    /** Whether this screen was drawn with the dark menu scheme (it is redrawn when that changes). */
+    private boolean menuDarkApplied;
+    /** The wallpaper sub-page is picking the slideshow collection (many checks) rather than one wallpaper. */
+    private boolean wallpaperMulti;
+    private static final String SLIDESHOW_SET_KEY = "slideshow_set";
+    private boolean slideshow;
+    private int slideshowMinutes;
+    private static final String SLEEP_TIMER_KEY = "sleep_timer_minutes";
+    static final String SCREENSAVER_USE_KEY = "screensaver_enabled";
+    private static final int DEFAULT_SLEEP_MINUTES = 5;
+    private static final int[] SLIDESHOW_MINUTES = {1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60};
     private int columns;
     private int dockOpacity;
     private String dockBackdrop;
     private boolean animations;
     private boolean libraryShowHidden;
+    /** The Monochrome backdrop was on when this screen's colours were set up (rows are darker then). */
+    private boolean monoApplied;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        menuDarkApplied = Config.dark(this, Config.PART_MENU);
+        if (menuDarkApplied) getTheme().applyStyle(R.style.SettingsDark, true);
+        monoApplied = Config.BACKDROP_COLOR.equals(Config.load(this).dockBackdrop);
+        if (monoApplied) getTheme().applyStyle(menuDarkApplied ? R.style.SettingsMonoDark : R.style.SettingsMonoLight, true);
         setContentView(R.layout.activity_launcher_settings);
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
@@ -66,6 +111,15 @@ public final class LauncherSettingsActivity extends Activity {
                     choices.edit().putInt("columns", columns).apply();
                     changed();
                 }, i -> String.valueOf(MIN_COLUMNS + i)));
+        tileOutlineChoice = findViewById(R.id.tileOutlineChoice);
+        tileOutlineChoice.setOnClickListener(v -> openTileOutlineChoices());
+        tileRadiusChoice = findViewById(R.id.tileRadiusChoice);
+        tileRadiusChoice.setOnClickListener(v -> openSub(tileRadiusChoice, R.string.tile_radius_label, R.string.tile_radius_desc, 0,
+                Config.MAX_TILE_RADIUS + 1, Config.tileRadius(this), i -> {
+                    choices.edit().putInt(Config.TILE_RADIUS_KEY, i).apply();
+                    AppAdapter.tileRadiusPx = i;
+                    changed();
+                }, i -> i + " px"));
         dockOpacityChoice = findViewById(R.id.dockOpacityChoice);
         dockOpacityChoice.setOnClickListener(v -> openSub(dockOpacityChoice, R.string.dock_opacity_label, R.string.dock_opacity_desc, 0,
                 DOCK_OPACITIES.length, dockOpacity / 10, i -> {
@@ -90,21 +144,71 @@ public final class LauncherSettingsActivity extends Activity {
             backdropChoices[i].setOnClickListener(v -> {
                 if (value.equals(dockBackdrop)) return;
                 dockBackdrop = value;
+                applyWallpaperBlur();
+                applyScrim();
                 choices.edit().putString(Config.DOCK_BACKDROP_KEY, value).apply();
                 changed();
+                if (Config.BACKDROP_COLOR.equals(value) != monoApplied) {
+                    // The rows' colours come from the theme: redraw this screen and come back to this page.
+                    getIntent().putExtra(REOPEN_BACKDROP, true);
+                    recreate();
+                    return;
+                }
                 refresh();
             });
         }
+        describeBackdrop(backdropChoices[0], R.id.backdropColorHint, R.string.dock_backdrop_color_desc,
+                R.string.dock_backdrop_color_requires, android.os.Build.VERSION_CODES.O);
+        describeBackdrop(backdropChoices[1], R.id.backdropBlurHint, R.string.dock_backdrop_blur_desc, R.string.dock_backdrop_blur_requires,
+                android.os.Build.VERSION_CODES.S);
+        describeBackdrop(backdropChoices[2], R.id.backdropLiquidHint, R.string.dock_backdrop_liquid_desc, R.string.dock_backdrop_liquid_requires,
+                android.os.Build.VERSION_CODES.TIRAMISU);
+        findViewById(R.id.slideshowThird).setOnClickListener(v -> setColorScheme(Config.SCHEME_MIXED));
+        int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow};
+        for (int i = 0; i < partRows.length; i++) {
+            final int part = i;
+            findViewById(partRows[i]).setOnClickListener(v -> toggleSchemePart(part));
+        }
+        colorSchemeChoice = findViewById(R.id.colorSchemeChoice);
+        colorSchemeChoice.setOnClickListener(v -> openColorSchemeChoices());
         dockBackdropChoice = findViewById(R.id.dockBackdropChoice);
         dockBackdropChoice.setOnClickListener(v -> openChoices(dockBackdropChoice, R.string.dock_backdrop_label));
+        languageChoice = findViewById(R.id.languageChoice);
+        languageChoice.setOnClickListener(v -> openLanguageChoices());
+        fontChoice = findViewById(R.id.fontChoice);
+        fontChoice.setOnClickListener(v -> openFontChoices());
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
-        wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
-        findViewById(R.id.wallpaperResetChoice).setOnClickListener(v -> {
-            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, DefaultWallpaper.CHOICE).apply();
-            changed();
-            Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
-            refresh();
-        });
+        wallpaperChoice.setOnClickListener(v -> openWallpapers(false));
+        findViewById(R.id.wallpaperResetChoice).setOnClickListener(v -> deleteGithubWallpapers());
+        slideshow = choices.getBoolean("slideshow", false);
+        slideshowMinutes = choices.getInt("slideshow_minutes", 1);
+        slideshowChoice = findViewById(R.id.slideshowChoice);
+        slideshowChoice.setOnClickListener(v -> openSlideshowChoices());
+        slideshowYes = findViewById(R.id.slideshowYes);
+        slideshowNo = findViewById(R.id.slideshowNo);
+        slideshowYes.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_CLOCK); else if (twoChoiceMode == 2) setScreensaverUse(true); else if (twoChoiceMode == 3) setColorScheme(Config.SCHEME_LIGHT); else if (twoChoiceMode == 4) setTileOutline(true); else setSlideshow(true); });
+        slideshowNo.setOnClickListener(v -> { if (twoChoiceMode == 1) setScreensaver(LiquidClockLayout.KIND_AERIAL); else if (twoChoiceMode == 2) setScreensaverUse(false); else if (twoChoiceMode == 3) setColorScheme(Config.SCHEME_DARK); else if (twoChoiceMode == 4) setTileOutline(false); else setSlideshow(false); });
+        screensaverUseChoice = findViewById(R.id.screensaverUseChoice);
+        screensaverUseChoice.setOnClickListener(v -> openScreensaverUseChoices());
+        screensaverChoice = findViewById(R.id.screensaverChoice);
+        screensaverChoice.setOnClickListener(v -> openScreensaverChoices());
+        sleepTimerChoice = findViewById(R.id.sleepTimerChoice);
+        sleepTimerChoice.setOnClickListener(v -> openSub(sleepTimerChoice, R.string.sleep_timer, R.string.sleep_timer_desc, 0,
+                SLIDESHOW_MINUTES.length, sleepTimerIndex(), i -> {
+                    choices.edit().putInt(SLEEP_TIMER_KEY, SLIDESHOW_MINUTES[i]).apply();
+                    changed();   // Home reads it when it rebuilds
+                },
+                i -> getString(R.string.slideshow_minutes, SLIDESHOW_MINUTES[i])));
+        slideshowCollectionChoice = findViewById(R.id.slideshowCollectionChoice);
+        slideshowCollectionChoice.setOnClickListener(v -> openWallpapers(true));
+        slideshowIntervalChoice = findViewById(R.id.slideshowIntervalChoice);
+        slideshowIntervalChoice.setOnClickListener(v -> openSub(slideshowIntervalChoice,
+                R.string.slideshow_interval, R.string.slideshow_interval_desc, 0, SLIDESHOW_MINUTES.length,
+                slideshowIndex(), i -> {
+                    slideshowMinutes = SLIDESHOW_MINUTES[i];
+                    choices.edit().putInt("slideshow_minutes", slideshowMinutes).apply();
+                    changed();
+                }, i -> getString(R.string.slideshow_minutes, SLIDESHOW_MINUTES[i])));
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
             animations = !animations;
@@ -115,40 +219,66 @@ public final class LauncherSettingsActivity extends Activity {
         openOnStartChoice = findViewById(R.id.openOnStartChoice);
         if (config.openOnStartChoice) {
             openOnStartChoice.setVisibility(View.VISIBLE);
+            findViewById(R.id.sectionHome).setVisibility(View.VISIBLE);   // its section title only with its row
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
+        hiddenAppsChoice = findViewById(R.id.hiddenAppsChoice);
+        hiddenAppsChoice.setOnClickListener(v -> openHiddenApps());
+        findViewById(R.id.resetAppsChoice).setOnClickListener(v -> new AlertDialog.Builder(this, R.style.SettingsDialog)
+                .setTitle(R.string.apps_reset_title)
+                .setMessage(R.string.apps_reset_message)
+                .setPositiveButton(R.string.about_reset_confirm, (dialog, which) -> {
+                    LibraryApps.clearHidden(this);
+                    libraryShowHidden = false;
+                    choices.edit().remove("library_show_hidden").apply();
+                    hiddenNow.clear();
+                    changed();
+                    refresh();
+                    Toast.makeText(this, R.string.apps_reset_done, Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
         libraryShowHiddenChoice = findViewById(R.id.libraryShowHiddenChoice);
         libraryShowHiddenChoice.setOnClickListener(v -> {
             libraryShowHidden = !libraryShowHidden;
             choices.edit().putBoolean("library_show_hidden", libraryShowHidden).apply();
             refresh();
         });
-        followThemeChoice = findViewById(R.id.followThemeChoice);
-        followThemeChoice.setOnClickListener(v -> {
-            if (!hasOnTvChoices()) return;
-            choices.edit().remove("columns").remove("animations")
-                    .remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(Config.DOCK_BACKDROP_KEY).remove(Config.DOCK_BLUR_KEY)
-                    .remove(OpenOnStart.KEY).commit();
-            Config current = Config.load(this);
-            columns = current.columns;
-            dockOpacity = current.dockOpacity;
-            dockBlur = Config.dockBlur(this);
-            dockBackdrop = current.dockBackdrop;
-            animations = current.animations;
-            changed();
-            refresh();
-        });
         findViewById(R.id.defaultHomeChoice).setOnClickListener(v -> {
             Toast.makeText(this, R.string.home_settings_help, Toast.LENGTH_LONG).show();
             open(new Intent(Settings.ACTION_HOME_SETTINGS));
         });
-        findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
-                open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
+        setUpAbout();
+        setUpProfile();
         setUpNav();
+        // Rows scrolled out of a page go under the page's title (cut at the scroller's edge, faded over the last
+        // 72dp by its fading edge), not over it; the sides stay open for the focused row's growth.
+        clipAtEdges(findViewById(R.id.pagePersonal));
+        clipAtEdges(findViewById(R.id.pageAbout));
+        clipAtEdges(findViewById(R.id.pageApps));
+        clipAtEdges(findViewById(R.id.pageProfile));
+        clipAtEdges(findViewById(R.id.pageWallpaper));
+        clipAtEdges(findViewById(R.id.subWallpaperScroll));
         loadWallpaper();
+        applyScrim();
+        // Draw the wallpaper previews now, in the background, so the picker opens with them already in the cache.
+        float dp = getResources().getDisplayMetrics().density;
+        WallpaperThumbs.prefetch(getApplicationContext(), (int) (64 * dp), (int) (36 * dp), 5 * dp);
         refresh();
-        columnsChoice.requestFocus();
+        colorSchemeChoice.requestFocus();
+        if (getIntent().getBooleanExtra(REOPEN_BACKDROP, false)) {
+            getIntent().removeExtra(REOPEN_BACKDROP);
+            openChoices(dockBackdropChoice, R.string.dock_backdrop_label);
+        } else if (getIntent().getBooleanExtra(REOPEN_FONT, false)) {
+            getIntent().removeExtra(REOPEN_FONT);
+            openFontChoices();
+        } else if (getIntent().getBooleanExtra(REOPEN_LANGUAGE, false)) {
+            getIntent().removeExtra(REOPEN_LANGUAGE);
+            openLanguageChoices();
+        } else if (getIntent().getBooleanExtra(REOPEN_SCHEME, false)) {
+            getIntent().removeExtra(REOPEN_SCHEME);
+            openColorSchemeChoices();
+        }
     }
 
     /** Home's current wallpaper (EXTRA_WALLPAPER), blurred like the apps grid's background. */
@@ -161,10 +291,34 @@ public final class LauncherSettingsActivity extends Activity {
         if (bitmap == null) return;
         android.widget.ImageView view = findViewById(R.id.wallpaper);
         view.setImageBitmap(bitmap);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        wallpaperView = view;
+        applyWallpaperBlur();
+    }
+
+    private android.widget.ImageView wallpaperView;
+
+    /** Monochrome: the wash over the wallpaper is 35% white, or 65% black in the dark scheme; otherwise the theme's own scrim. */
+    private void applyScrim() {
+        View scrim = findViewById(R.id.wallpaperScrim);
+        if (scrim == null) return;
+        if (Config.BACKDROP_COLOR.equals(dockBackdrop)) {
+            scrim.setBackgroundColor(Config.dark(this, Config.PART_MENU) ? 0xA6000000 : 0x59FFFFFF);
+        } else {
+            android.util.TypedValue value = new android.util.TypedValue();
+            if (getTheme().resolveAttribute(R.attr.settingsScrim, value, true)) scrim.setBackgroundColor(value.data);
+        }
+    }
+
+    /** Blurred like the apps grid's background, except with the Monochrome backdrop, which has no blur at all. */
+    private void applyWallpaperBlur() {
+        if (wallpaperView == null) return;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                && !Config.BACKDROP_COLOR.equals(dockBackdrop)) {
             float sigma = 36f * getResources().getDisplayMetrics().density;
-            view.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(sigma, sigma,
+            wallpaperView.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(sigma, sigma,
                     android.graphics.Shader.TileMode.CLAMP));
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            wallpaperView.setRenderEffect(null);
         }
     }
 
@@ -175,15 +329,327 @@ public final class LauncherSettingsActivity extends Activity {
     /** The left menu: focusing an entry opens its page. Pages 2 and 3 are empty for now. */
     private void setUpNav() {
         nav = new View[]{findViewById(R.id.navPersonal), findViewById(R.id.navProfile),
-                findViewById(R.id.navWallpaper)};
+                findViewById(R.id.navWallpaper), findViewById(R.id.navApps), findViewById(R.id.navAbout)};
         pages = new View[]{findViewById(R.id.pagePersonal), findViewById(R.id.pageProfile),
-                findViewById(R.id.pageWallpaper)};
+                findViewById(R.id.pageWallpaper), findViewById(R.id.pageApps), findViewById(R.id.pageAbout)};
         for (int i = 0; i < nav.length; i++) {
             final int index = i;
             nav[i].setOnFocusChangeListener((v, has) -> { if (has && !navLock) showPage(index); });
             nav[i].setOnClickListener(v -> showPage(index));
         }
+        // The menu's ends keep focus: Down on the last entry (Up on the first) must not slip into the page on the
+        // right; only Right or OK goes there.
+        nav[0].setNextFocusUpId(nav[0].getId());
+        nav[nav.length - 1].setNextFocusDownId(nav[nav.length - 1].getId());
         showPage(0);
+    }
+
+    /** The Profile page: the user's name (typed on the keyboard) and avatar (an emoji, picked from a list). */
+    private void setUpProfile() {
+        profileNameChoice = findViewById(R.id.profileNameChoice);
+        profileAvatarChoice = findViewById(R.id.profileAvatarChoice);
+        profileNameChoice.setOnClickListener(v -> {
+            android.widget.EditText input = new android.widget.EditText(this);
+            input.setSingleLine(true);
+            input.setHint(R.string.profile_name_hint);
+            input.setText(Avatars.name(this));
+            input.setSelection(input.getText().length());
+            input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(24)});
+            input.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+            AlertDialog dialog = new AlertDialog.Builder(this, R.style.SettingsDialog)
+                    .setTitle(R.string.profile_name)
+                    .setView(input)
+                    .setPositiveButton(android.R.string.ok, (d, which) -> {
+                        String name = input.getText().toString().trim();
+                        if (name.isEmpty() || name.equals(Avatars.DEFAULT_NAME)) choices.edit().remove(Avatars.NAME_KEY).apply();
+                        else choices.edit().putString(Avatars.NAME_KEY, name).apply();
+                        changed();
+                        refresh();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .create();
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+            dialog.show();
+        });
+        profileAvatarChoice.setOnClickListener(v -> openAvatars());
+    }
+
+    /** The avatar picker, like the wallpaper picker: a row per emoji, its picture, its name, a tick on the chosen one. */
+    private void openAvatars() {
+        navLock = true;
+        subRow = profileAvatarChoice;
+        subOpen = true;
+        findViewById(R.id.pageProfile).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.profile_avatar_title);
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        addBackRow(list, dp);
+        List<TextView> rows = new ArrayList<>();
+        String current = Avatars.avatar(this);
+        TextView chosen = null;
+        for (int i = -1; i < Avatars.LIST.length; i++) {
+            final String emoji = i < 0 ? "" : Avatars.LIST[i][0];
+            TextView row = avatarRow(dp, emoji, i < 0 ? getString(R.string.profile_avatar_none) : Avatars.LIST[i][1], i < 0);
+            row.setTag(emoji);
+            row.setOnClickListener(v -> {
+                if (emoji.isEmpty()) choices.edit().remove(Avatars.AVATAR_KEY).apply();
+                else choices.edit().putString(Avatars.AVATAR_KEY, emoji).apply();
+                changed();
+                for (TextView r : rows) tickAvatar(r, ((String) r.getTag()).equals(emoji));
+                refresh();
+            });
+            tickAvatar(row, emoji.equals(current));
+            if (emoji.equals(current)) chosen = row;
+            rows.add(row);
+            list.addView(row);
+        }
+        (chosen != null ? chosen : rows.get(0)).requestFocus();
+        navLock = false;
+    }
+
+    private TextView avatarRow(float dp, String emoji, String label, boolean plainIcon) {
+        TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+        row.setText(label);
+        row.setCompoundDrawablePadding((int) (14 * dp));
+        row.setMinHeight((int) (52 * dp));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+        rowParams.bottomMargin = (int) (12 * dp) - 12;
+        row.setLayoutParams(rowParams);
+        int size = (int) (36 * dp);
+        android.graphics.drawable.Drawable face;
+        row.setCompoundDrawableTintList(null);   // the green tick keeps its colour
+        if (plainIcon) {
+            face = getDrawable(R.drawable.ic_user_circle).mutate();
+            face.setTintList(getResources().getColorStateList(R.drawable.settings_text, getTheme()));   // the row's text colour
+            face.setBounds(0, 0, size, size);
+        } else {
+            face = new Avatars.Face(emoji, size, size);
+            face.setBounds(0, 0, size, size);
+        }
+        row.setCompoundDrawablesRelative(face, null, null, null);
+        return row;
+    }
+
+    private void tickAvatar(TextView row, boolean chosen) {
+        android.graphics.drawable.Drawable tick = getDrawable(chosen ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked);
+        android.graphics.drawable.Drawable[] d = row.getCompoundDrawablesRelative();
+        android.graphics.drawable.Drawable start = d[0];
+        android.graphics.Rect bounds = start == null ? null : new android.graphics.Rect(start.getBounds());
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(start, null, tick, null);
+        if (start != null && bounds != null) start.setBounds(bounds);
+    }
+
+    /** The About page: what this launcher is, and its settings backup, restore and reset. */
+    private void setUpAbout() {
+        String version = "";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            // shown empty
+        }
+        ((TextView) findViewById(R.id.aboutHome)).setText(getString(R.string.about_home) + ": liquidOS");
+        ((TextView) findViewById(R.id.aboutDeveloper)).setText(getString(R.string.about_developer) + ": KirillCh143");
+        ((TextView) findViewById(R.id.aboutVersion)).setText(getString(R.string.about_version) + ": " + version);
+        aboutBackupChoice = findViewById(R.id.aboutBackupChoice);
+        aboutBackupChoice.setText(getString(R.string.about_backup_save) + ": Download/" + SettingsBackup.FILE_NAME);
+        aboutBackupChoice.setOnClickListener(v -> {
+            try {
+                Toast.makeText(this, getString(R.string.about_saved, SettingsBackup.save(this)), Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                Toast.makeText(this, R.string.about_save_failed, Toast.LENGTH_LONG).show();
+            }
+        });
+        findViewById(R.id.aboutRestoreChoice).setOnClickListener(v -> {
+            try {
+                if (!SettingsBackup.restore(this)) {
+                    Toast.makeText(this, R.string.about_no_backup, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                afterSettingsReplaced(R.string.about_restored);
+            } catch (Exception e) {
+                Toast.makeText(this, R.string.about_restore_failed, Toast.LENGTH_LONG).show();
+            }
+        });
+        findViewById(R.id.aboutResetChoice).setOnClickListener(v -> new AlertDialog.Builder(this, R.style.SettingsDialog)
+                .setTitle(R.string.about_reset_title)
+                .setMessage(R.string.about_reset_message)
+                .setPositiveButton(R.string.about_reset_confirm, (dialog, which) -> {
+                    SettingsBackup.reset(this);
+                    afterSettingsReplaced(R.string.about_reset_done);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
+    }
+
+    /** The saved choices were replaced (restore or reset): Home rebuilds on resume, and this screen reads them afresh. */
+    private void afterSettingsReplaced(int message) {
+        changed();
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        recreate();
+    }
+
+    private void addBackRow(LinearLayout list, float dp) {
+        TextView back = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsBackRow), null, 0);
+        back.setText(R.string.settings_back);
+        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (40 * dp));
+        backParams.topMargin = (int) (16 * dp);
+        backParams.bottomMargin = (int) (12 * dp) - 12;   // the same gap under Back as between the rows below it
+        back.setLayoutParams(backParams);
+        back.setOnClickListener(v -> closeSub());
+        list.addView(back);
+    }
+
+    /** Every app that has a launcher entry (TV or not), by name, without this launcher itself. */
+    private List<android.content.pm.ResolveInfo> launchableApps(Map<String, String> names) {
+        PackageManager pm = getPackageManager();
+        Map<String, android.content.pm.ResolveInfo> byPackage = new java.util.LinkedHashMap<>();
+        for (String category : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
+            for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(category), 0)) {
+                String pkg = ri.activityInfo.packageName;
+                if (!pkg.equals(getPackageName()) && !byPackage.containsKey(pkg)) byPackage.put(pkg, ri);
+            }
+        }
+        List<android.content.pm.ResolveInfo> apps = new ArrayList<>(byPackage.values());
+        Collections.sort(apps, (a, b) -> labelOf(a, names).compareToIgnoreCase(labelOf(b, names)));
+        return apps;
+    }
+
+    private String labelOf(android.content.pm.ResolveInfo ri, Map<String, String> names) {
+        String custom = names.get(ri.activityInfo.packageName);
+        return custom != null && !custom.isEmpty() ? custom : ri.loadLabel(getPackageManager()).toString();
+    }
+
+    /** "Manage hidden apps": every app as a row, a green check on the ones that are hidden (the same list
+     *  the apps screen's "Hide app" action keeps). A tick hides the app, another takes it back. */
+    private void openHiddenApps() {
+        navLock = true;
+        subRow = hiddenAppsChoice;
+        subOpen = true;
+        findViewById(R.id.pageApps).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.apps_manage_hidden_title);
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        addBackRow(list, dp);
+        hiddenNow.clear();
+        hiddenNow.addAll(LibraryApps.loadHidden(this));
+        Map<String, String> names = LibraryNames.load(this);
+        List<android.content.pm.ResolveInfo> apps = launchableApps(names);
+        View first = null;
+        for (android.content.pm.ResolveInfo ri : apps) {
+            View row = appRow(dp, ri, labelOf(ri, names));
+            list.addView(row);
+            if (first == null) first = row;
+        }
+        if (apps.isEmpty()) Toast.makeText(this, R.string.apps_hidden_none, Toast.LENGTH_SHORT).show();
+        if (first != null) first.requestFocus();
+        navLock = false;
+    }
+
+    /** One app as a row, like a wallpaper in the picker: its picture, its name, and a tick when it is hidden. */
+    private TextView appRow(float dp, android.content.pm.ResolveInfo ri, String label) {
+        final String pkg = ri.activityInfo.packageName;
+        TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+        row.setText(label);
+        row.setCompoundDrawablePadding((int) (14 * dp));
+        row.setCompoundDrawableTintList(null);
+        row.setMinHeight((int) (52 * dp));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+        rowParams.bottomMargin = (int) (12 * dp) - 12;
+        row.setLayoutParams(rowParams);
+        setTick(row, hiddenNow.contains(pkg));
+        row.setOnClickListener(v -> {
+            boolean hide = !hiddenNow.contains(pkg);
+            if (!LibraryApps.setHidden(this, pkg, hide)) {
+                Toast.makeText(this, R.string.about_save_failed, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (hide) hiddenNow.add(pkg); else hiddenNow.remove(pkg);
+            setTick(row, hide);
+            changed();
+        });
+        int w = (int) (64 * dp), h = (int) (36 * dp);
+        thumbs.execute(() -> {
+            PackageManager pm = getPackageManager();
+            android.graphics.drawable.Drawable art = ri.activityInfo.loadBanner(pm);
+            if (art == null) art = ri.activityInfo.applicationInfo.loadBanner(pm);
+            boolean banner = art != null;
+            if (art == null) art = ri.loadIcon(pm);
+            android.graphics.Bitmap thumb = appThumb(art, banner, w, h, 5 * dp);
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                android.graphics.drawable.Drawable d = new android.graphics.drawable.BitmapDrawable(getResources(), thumb);
+                d.setBounds(0, 0, w, h);
+                row.setCompoundDrawablesRelative(d, null, row.getCompoundDrawablesRelative()[2], null);
+            });
+        });
+        return row;
+    }
+
+    /** The row's tick: green when the app is hidden, an empty ring otherwise (the wallpaper picker's own). */
+    private void setTick(TextView row, boolean hidden) {
+        android.graphics.drawable.Drawable tick = getDrawable(hidden ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked);
+        android.graphics.drawable.Drawable[] d = row.getCompoundDrawablesRelative();
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(d[0], null, tick, null);
+        if (d[0] != null) d[0].setBounds(0, 0, d[0].getBounds().width(), d[0].getBounds().height());
+    }
+
+    /** A banner is cropped to a rounded preview like the wallpapers'; an icon is centred as it is, on nothing. */
+    private static android.graphics.Bitmap appThumb(android.graphics.drawable.Drawable art, boolean banner, int w, int h, float radius) {
+        android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(out);
+        if (!banner) {
+            int side = Math.min(w, h);
+            art.setBounds((w - side) / 2, 0, (w + side) / 2, side);
+            art.draw(canvas);
+            return out;
+        }
+        int src = canvas.saveLayer(0, 0, w, h, null);
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        canvas.drawRoundRect(new android.graphics.RectF(0, 0, w, h), radius, radius, paint);
+        paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
+        float bw = Math.max(art.getIntrinsicWidth(), 1), bh = Math.max(art.getIntrinsicHeight(), 1);
+        float scale = Math.max(w / bw, h / bh);
+        float dw = bw * scale, dh = bh * scale;
+        android.graphics.Bitmap raw = android.graphics.Bitmap.createBitmap((int) bw, (int) bh, android.graphics.Bitmap.Config.ARGB_8888);
+        art.setBounds(0, 0, (int) bw, (int) bh);
+        art.draw(new android.graphics.Canvas(raw));
+        canvas.drawBitmap(raw, null, new android.graphics.RectF((w - dw) / 2f, (h - dh) / 2f, (w + dw) / 2f, (h + dh) / 2f), paint);
+        canvas.restoreToCount(src);
+        raw.recycle();
+        return out;
+    }
+
+    /** The right pane's sub-page, with its fixed Back row (the wallpaper picker hides it for a Back row that scrolls). */
+    private void showSubPage() {
+        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        findViewById(R.id.subBack).setVisibility(View.VISIBLE);
+    }
+
+    private void clipAtEdges(View scroller) {
+        scroller.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            int side = (int) (60 * getResources().getDisplayMetrics().density);
+            v.setClipBounds(new android.graphics.Rect(-side, 0, r - l + side, b - t));
+        });
     }
 
     private void showPage(int index) {
@@ -194,7 +660,7 @@ public final class LauncherSettingsActivity extends Activity {
         }
         page = index;
         ((TextView) findViewById(R.id.pageTitle)).setText(
-                new int[]{R.string.nav_personalization, R.string.nav_profile, R.string.nav_screensaver_wallpaper}[index]);
+                new int[]{R.string.nav_personalization, R.string.nav_profile, R.string.nav_screensaver_wallpaper, R.string.nav_apps, R.string.nav_about}[index]);
         for (int i = 0; i < nav.length; i++) {
             nav[i].setSelected(i == index);
             pages[i].setVisibility(i == index ? View.VISIBLE : View.GONE);
@@ -221,9 +687,19 @@ public final class LauncherSettingsActivity extends Activity {
             boolean toContent = code == (rtl ? android.view.KeyEvent.KEYCODE_DPAD_LEFT : android.view.KeyEvent.KEYCODE_DPAD_RIGHT);
             boolean toNav = code == (rtl ? android.view.KeyEvent.KEYCODE_DPAD_RIGHT : android.view.KeyEvent.KEYCODE_DPAD_LEFT);
             if (inNav(f) && toContent) {
-                if (page == 0) columnsChoice.requestFocus();
-                else if (page == 2) githubWallpapersChoice.requestFocus();
+                if (page == 0) colorSchemeChoice.requestFocus();
+                else if (page == 2) screensaverUseChoice.requestFocus();
+                else if (page == 1) profileNameChoice.requestFocus();
+                else if (page == 3) libraryShowHiddenChoice.requestFocus();
+                else if (page == 4) findViewById(R.id.defaultHomeChoice).requestFocus();
                 return true;
+            }
+            // Up/Down on the page's first/last row stays there: focus search must not fall into the menu on the left
+            // (or nowhere). Only Left from the page's left edge goes back to the menu.
+            boolean down = code == android.view.KeyEvent.KEYCODE_DPAD_DOWN, up = code == android.view.KeyEvent.KEYCODE_DPAD_UP;
+            if (!inNav(f) && (down || up)) {
+                View next = f.focusSearch(down ? View.FOCUS_DOWN : View.FOCUS_UP);
+                if (next == null || inNav(next)) return true;
             }
             if (!inNav(f) && !(f instanceof StepSlider) && toNav) {
                 View next = f.focusSearch(toNav && !rtl ? View.FOCUS_LEFT : View.FOCUS_RIGHT);
@@ -255,8 +731,11 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.subSliderCard).setVisibility(View.VISIBLE);
         findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
         findViewById(R.id.pagePersonal).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        showSubPage();
         ((TextView) findViewById(R.id.pageTitle)).setText(labelRes);
         findViewById(R.id.subSection).setVisibility(View.GONE);
         ((TextView) findViewById(R.id.subTitle)).setText(labelRes);
@@ -280,22 +759,335 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = row;
         subOpen = true;
         findViewById(R.id.pagePersonal).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
         findViewById(R.id.subSection).setVisibility(View.VISIBLE);
         ((TextView) findViewById(R.id.pageTitle)).setText(labelRes);
         ((TextView) findViewById(R.id.subSection)).setText(labelRes);
         refresh();
         findViewById(R.id.subBack).setNextFocusDownId(backdropChoices[0].getId());
         backdropChoices[0].setNextFocusUpId(R.id.subBack);
-        backdropChoices[backdropChoices.length - 1].setNextFocusDownId(backdropChoices[backdropChoices.length - 1].getId());
+        // Down goes to the next row that can take focus, and on the last one stays there (a row the Android
+        // version cannot show is not focusable, so a fixed id on the last row would drop the focus).
+        for (int i = 0; i < backdropChoices.length; i++) {
+            int below = backdropChoices[i].getId();
+            for (int k = i + 1; k < backdropChoices.length; k++) {
+                if (backdropChoices[k].isFocusable()) { below = backdropChoices[k].getId(); break; }
+            }
+            backdropChoices[i].setNextFocusDownId(below);
+        }
         for (int i = 0; i < BACKDROPS.length; i++) {
             if (BACKDROPS[i].equals(dockBackdrop)) { backdropChoices[i].requestFocus(); navLock = false; return; }
         }
         backdropChoices[0].requestFocus();
         navLock = false;
+    }
+
+    private void setColorScheme(int mode) {
+        choices.edit().putInt(Config.SCHEME_KEY, mode).apply();
+        applySchemeChange();
+    }
+
+    /** One part of the mixed scheme: light <-> dark. */
+    private void toggleSchemePart(int part) {
+        choices.edit().putBoolean(Config.PART_KEYS[part], !Config.dark(this, part)).apply();
+        applySchemeChange();
+    }
+
+    private void applySchemeChange() {
+        Config.applyScheme(this);
+        changed();
+        if (Config.dark(this, Config.PART_MENU) != menuDarkApplied) {
+            // This screen's own colours changed: redraw it and come back to the same sub-page.
+            getIntent().putExtra(REOPEN_SCHEME, true);
+            recreate();
+        } else {
+            refresh();
+        }
+    }
+
+    private static final String REOPEN_SCHEME = "reopen_scheme";
+    private static final String REOPEN_BACKDROP = "reopen_backdrop";
+    private static final String REOPEN_LANGUAGE = "reopen_language";
+    private static final String REOPEN_FONT = "reopen_font";
+
+    private boolean mode0IsMixed() {
+        return Config.colorScheme(this) == Config.SCHEME_MIXED;
+    }
+
+    /** "Color scheme": Light / Dark, the same two-tile sub-page as Slideshow. */
+    private void openColorSchemeChoices() {
+        navLock = true;
+        subRow = colorSchemeChoice;
+        subOpen = true;
+        findViewById(R.id.pagePersonal).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        twoChoiceMode = 3;
+        findViewById(R.id.slideshowThird).setVisibility(View.VISIBLE);
+        findViewById(R.id.slideshowHint).setVisibility(View.GONE);
+        slideshowYes.setText(R.string.color_scheme_light);
+        slideshowNo.setText(R.string.color_scheme_dark);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.color_scheme_label);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.color_scheme_label);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        // Down walks Light -> Dark -> Mixed -> the four additional rows; the ends keep focus where it is.
+        slideshowNo.setNextFocusDownId(R.id.slideshowThird);
+        View third = findViewById(R.id.slideshowThird);
+        third.setNextFocusUpId(R.id.slideshowNo);
+        third.setNextFocusDownId(mode0IsMixed() ? R.id.schemeMenuRow : R.id.slideshowThird);
+        findViewById(R.id.schemeMenuRow).setNextFocusUpId(R.id.slideshowThird);
+        findViewById(R.id.schemeSubRow).setNextFocusDownId(R.id.schemeSubRow);
+        int mode = Config.colorScheme(this);
+        (mode == Config.SCHEME_DARK ? slideshowNo : mode == Config.SCHEME_MIXED ? findViewById(R.id.slideshowThird) : slideshowYes).requestFocus();
+        navLock = false;
+    }
+
+    /** Picks the launcher's language and redraws this screen in it, coming back to the same sub-page. */
+    private void setLanguage(String lang) {
+        if (lang.equals(Lang.current(this))) return;
+        Lang.set(this, lang);
+        changed();   // Home rebuilds in the new language when it resumes
+        getIntent().putExtra(REOPEN_LANGUAGE, true);
+        recreate();
+    }
+
+    /** "Language": a list of the launcher's languages, each in its own name, a tick on the chosen one. */
+    private void openLanguageChoices() {
+        String[] codes = new String[Lang.LIST.length], names = new String[Lang.LIST.length];
+        for (int i = 0; i < codes.length; i++) { codes[i] = Lang.LIST[i][0]; names[i] = Lang.LIST[i][2]; }
+        openOptionList(languageChoice, R.string.language_label, codes, names, Lang.current(this), this::setLanguage, false);
+    }
+
+    /** Picks the launcher's font and redraws this screen in it, coming back to the same sub-page. */
+    private void setFont(String code) {
+        if (code.equals(UiFonts.current(this))) return;
+        UiFonts.set(this, code);
+        changed();   // Home rebuilds with the new font when it resumes
+        getIntent().putExtra(REOPEN_FONT, true);
+        recreate();
+    }
+
+    /** "Font": the bundled fonts, each name drawn in its own letters, a tick on the chosen one. */
+    private void openFontChoices() {
+        String[] codes = new String[UiFonts.LIST.length], names = new String[UiFonts.LIST.length];
+        for (int i = 0; i < codes.length; i++) { codes[i] = UiFonts.LIST[i][0]; names[i] = UiFonts.LIST[i][1]; }
+        openOptionList(fontChoice, R.string.font_label, codes, names, UiFonts.current(this), this::setFont, true);
+    }
+
+    /** A sub-page of pick-one rows (like the avatar list): a Back row, one row per option, a tick on the current one. */
+    private void openOptionList(View from, int titleRes, String[] codes, String[] names, String current,
+                                java.util.function.Consumer<String> pick, boolean ownFaces) {
+        navLock = true;
+        subRow = from;
+        subOpen = true;
+        findViewById(R.id.pagePersonal).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(titleRes);
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        addBackRow(list, dp);
+        TextView chosen = null, first = null, last = null;
+        for (int i = 0; i < codes.length; i++) {
+            final String code = codes[i];
+            TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+            row.setText(names[i]);
+            if (ownFaces) row.setTypeface(UiFonts.sample(this, code));
+            row.setMinHeight((int) (52 * dp));
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+            rowParams.bottomMargin = (int) (12 * dp) - 12;
+            row.setLayoutParams(rowParams);
+            row.setCompoundDrawableTintList(null);   // the tick keeps its colour
+            row.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null,
+                    getDrawable(code.equals(current) ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked), null);
+            row.setOnClickListener(v -> pick.accept(code));
+            list.addView(row);
+            if (first == null) first = row;
+            last = row;
+            if (code.equals(current)) chosen = row;
+        }
+        if (last.getId() == View.NO_ID) last.setId(View.generateViewId());
+        last.setNextFocusDownId(last.getId());   // Down on the last option stays on it
+        (chosen != null ? chosen : first).requestFocus();
+        navLock = false;
+    }
+
+    private void setTileOutline(boolean on) {
+        choices.edit().putBoolean(Config.TILE_OUTLINE_KEY, on).apply();
+        changed();
+        refresh();
+    }
+
+    /** "App outline": Yes / No, the same two-tile sub-page as "Use screensaver". */
+    private void openTileOutlineChoices() {
+        navLock = true;
+        subRow = tileOutlineChoice;
+        subOpen = true;
+        findViewById(R.id.pagePersonal).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        twoChoiceMode = 4;
+        findViewById(R.id.slideshowHint).setVisibility(View.GONE);
+        findViewById(R.id.slideshowThird).setVisibility(View.GONE);
+        slideshowYes.setText(R.string.yes);
+        slideshowNo.setText(R.string.no);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.tile_outline_label);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.tile_outline_label);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        (Config.tileOutline(this) ? slideshowYes : slideshowNo).requestFocus();
+        navLock = false;
+    }
+
+    /** Whether Home starts the screensaver by itself after the sleep timer (on until switched off). */
+    private boolean screensaverUsed() {
+        return choices.getBoolean(SCREENSAVER_USE_KEY, true);
+    }
+
+    private void setScreensaverUse(boolean on) {
+        choices.edit().putBoolean(SCREENSAVER_USE_KEY, on).apply();
+        changed();   // Home reads it when it rebuilds
+        refresh();
+    }
+
+    /** "Use screensaver": Yes / No, the same two-tile sub-page as Slideshow. */
+    private void openScreensaverUseChoices() {
+        navLock = true;
+        subRow = screensaverUseChoice;
+        subOpen = true;
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        twoChoiceMode = 2;
+        findViewById(R.id.slideshowHint).setVisibility(View.GONE);
+        findViewById(R.id.slideshowThird).setVisibility(View.GONE);
+        slideshowYes.setText(R.string.yes);
+        slideshowNo.setText(R.string.no);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.screensaver_use);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.screensaver_use);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        (screensaverUsed() ? slideshowYes : slideshowNo).requestFocus();
+        navLock = false;
+    }
+
+    private boolean screensaverIsClock() {
+        return LiquidClockLayout.KIND_CLOCK.equals(choices.getString(LiquidClockLayout.KIND_KEY, LiquidClockLayout.KIND_AERIAL));
+    }
+
+    private void setScreensaver(String kind) {
+        choices.edit().putString(LiquidClockLayout.KIND_KEY, kind).apply();   // read when the screensaver starts
+        refresh();
+    }
+
+    /** Screensaver type: the same two-tile sub-page as Slideshow, with the video first and the clock second. */
+    private void openScreensaverChoices() {
+        navLock = true;
+        twoChoiceMode = 1;
+        subRow = screensaverChoice;
+        subOpen = true;
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        slideshowYes.setText(R.string.screensaver_kind_clock);
+        slideshowNo.setText(R.string.screensaver_kind_aerial);
+        findViewById(R.id.slideshowHint).setVisibility(View.VISIBLE);
+        findViewById(R.id.slideshowThird).setVisibility(View.GONE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.screensaver_kind_label);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.screensaver_kind_label);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        (screensaverIsClock() ? slideshowYes : slideshowNo).requestFocus();
+        navLock = false;
+    }
+
+    private void setSlideshow(boolean on) {
+        if (slideshow == on) return;
+        slideshow = on;
+        choices.edit().putBoolean("slideshow", on).apply();
+        changed();
+        refresh();
+    }
+
+    /** Slideshow: a Back row and the Yes / No tiles, a check on the chosen one (like the dock backdrop). */
+    private void openSlideshowChoices() {
+        navLock = true;
+        subRow = slideshowChoice;
+        subOpen = true;
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.VISIBLE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
+        findViewById(R.id.subSection).setVisibility(View.VISIBLE);
+        twoChoiceMode = 0;
+        findViewById(R.id.slideshowHint).setVisibility(View.GONE);
+        findViewById(R.id.slideshowThird).setVisibility(View.GONE);
+        slideshowYes.setText(R.string.yes);
+        slideshowNo.setText(R.string.no);
+        ((TextView) findViewById(R.id.pageTitle)).setText(R.string.slideshow_label);
+        ((TextView) findViewById(R.id.subSection)).setText(R.string.slideshow_label);
+        refresh();
+        findViewById(R.id.subBack).setNextFocusDownId(R.id.slideshowYes);
+        slideshowYes.setNextFocusUpId(R.id.subBack);
+        slideshowNo.setNextFocusDownId(R.id.slideshowNo);
+        (slideshow ? slideshowYes : slideshowNo).requestFocus();
+        navLock = false;
+    }
+
+    private int sleepTimerIndex() {
+        int minutes = choices.getInt(SLEEP_TIMER_KEY, DEFAULT_SLEEP_MINUTES);
+        for (int i = 0; i < SLIDESHOW_MINUTES.length; i++) if (SLIDESHOW_MINUTES[i] == minutes) return i;
+        return 1;
+    }
+
+    private int slideshowIndex() {
+        for (int i = 0; i < SLIDESHOW_MINUTES.length; i++) if (SLIDESHOW_MINUTES[i] == slideshowMinutes) return i;
+        return 0;
     }
 
     /** The sub-page that copies the GitHub wallpaper collection onto the TV, with a progress bar. */
@@ -304,15 +1096,18 @@ public final class LauncherSettingsActivity extends Activity {
         subRow = row;
         subOpen = true;
         findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
-        findViewById(R.id.pageSub).setVisibility(View.VISIBLE);
+        showSubPage();
         findViewById(R.id.subSection).setVisibility(View.GONE);
         findViewById(R.id.subSliderCard).setVisibility(View.GONE);
         findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.GONE);
         findViewById(R.id.subDownloadCard).setVisibility(View.VISIBLE);
         ((TextView) findViewById(R.id.pageTitle)).setText(R.string.wallpapers_github);
         TextView status = findViewById(R.id.dlStatus);
         android.widget.ProgressBar bar = findViewById(R.id.dlBar);
-        bar.setIndeterminate(true);
+        bar.setIndeterminate(false);   // the stock indeterminate bar cannot have rounded ends; the text says it is connecting
+        bar.setProgress(0);
         status.setText(R.string.dl_connecting);
         findViewById(R.id.subBack).setNextFocusDownId(R.id.subBack);
         findViewById(R.id.subBack).requestFocus();
@@ -345,11 +1140,14 @@ public final class LauncherSettingsActivity extends Activity {
         navLock = true;
         subOpen = false;
         if (downloadCancel != null) downloadCancel.set(true);
-        boolean fromWallpapers = subRow == githubWallpapersChoice;
+        boolean fromProfile = subRow == profileAvatarChoice;
+        boolean fromApps = subRow == hiddenAppsChoice;
+        boolean fromWallpapers = subRow == githubWallpapersChoice || subRow == wallpaperChoice || subRow == slideshowCollectionChoice || subRow == screensaverChoice || subRow == screensaverUseChoice || subRow == sleepTimerChoice || subRow == slideshowChoice || subRow == slideshowIntervalChoice;
         findViewById(R.id.pageSub).setVisibility(View.GONE);
-        findViewById(fromWallpapers ? R.id.pageWallpaper : R.id.pagePersonal).setVisibility(View.VISIBLE);
-        ((TextView) findViewById(R.id.pageTitle)).setText(fromWallpapers ? R.string.nav_screensaver_wallpaper
-                : R.string.nav_personalization);
+        findViewById(fromProfile ? R.id.pageProfile : fromApps ? R.id.pageApps : fromWallpapers ? R.id.pageWallpaper
+                : R.id.pagePersonal).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(fromProfile ? R.string.nav_profile : fromApps ? R.string.nav_apps
+                : fromWallpapers ? R.string.nav_screensaver_wallpaper : R.string.nav_personalization);
         refresh();
         if (subRow != null) subRow.requestFocus();
         navLock = false;
@@ -361,40 +1159,209 @@ public final class LauncherSettingsActivity extends Activity {
         else super.onBackPressed();
     }
 
-    private void showWallpaperPicker() {
+    /** A group or picture name in the app's language (res/values-xx/wallpaper_names.xml), as it is when unlisted. */
+    private String localName(String name) {
+        for (String pair : getResources().getStringArray(R.array.wallpaper_names)) {
+            int cut = pair.indexOf('=');
+            if (cut > 0 && pair.substring(0, cut).equals(name)) return pair.substring(cut + 1);
+        }
+        return name;
+    }
+
+    private static String builtinName(String choice) {
+        for (String[] e : DefaultWallpaper.EXTRA) if (e[0].equals(choice)) return e[1];
+        return choice;
+    }
+
+    /** Removes what "Download wallpapers from GitHub" put on the TV: the group folders under wallpapers/. Pictures
+     *  placed straight in wallpapers/ (by a theme) stay. A picked wallpaper that is gone falls back to the built-in. */
+    private void deleteGithubWallpapers() {
         File dir = Config.dir(this);
-        List<File> images = new java.util.ArrayList<>(WallpaperRotation.images(
-                dir == null ? null : new File(dir, "wallpapers")));
-        // A theme with a single wallpaper.jpg offers that picture too (Config maps the choice back to it).
-        File single = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
-        if (single != null && single.isFile()) images.add(0, single);
-        String[] labels = new String[images.size() + 1];
-        for (int i = 0; i < images.size(); i++) labels[i] = wallpaperLabel(images.get(i).getName());
-        labels[images.size()] = getString(R.string.wallpaper_none);
+        File root = dir == null ? null : new File(dir, ThemeFiles.WALLPAPERS);
+        File[] entries = root == null ? null : root.listFiles();
+        int removed = 0;
+        if (entries != null) {
+            for (File group : entries) {
+                if (!group.isDirectory()) continue;
+                File[] files = group.listFiles();
+                if (files != null) for (File f : files) if (f.delete()) removed++;
+                group.delete();
+            }
+        }
+        if (removed == 0) {
+            Toast.makeText(this, R.string.wallpapers_github_none, Toast.LENGTH_SHORT).show();
+            return;
+        }
         String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
-        int checked = "none".equals(current) ? images.size()
-                : indexOf(images, current);
-        new AlertDialog.Builder(this, R.style.SettingsDialog)
-                .setTitle(R.string.wallpaper_label)
-                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
-                    dialog.dismiss();
-                    if (which == images.size()) {
-                        choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
-                    } else {
-                        choices.edit().putString(Config.WALLPAPER_CHOICE_KEY,
-                                images.get(which).getName()).apply();
-                    }
-                    changed();
-                    Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
-                    refresh();
-                })
-                .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
-                    choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
-                    changed();
-                    refresh();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        if (current != null && !"none".equals(current) && !DefaultWallpaper.isChoice(current)
+                && WallpaperRotation.find(WallpaperRotation.images(root), current) == null) {
+            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, DefaultWallpaper.CHOICE).apply();
+        }
+        changed();
+        Toast.makeText(this, R.string.wallpapers_github_deleted, Toast.LENGTH_SHORT).show();
+        refresh();
+    }
+
+    private final List<TextView> wallpaperRows = new ArrayList<>();
+    private final java.util.concurrent.ExecutorService thumbs = java.util.concurrent.Executors.newSingleThreadExecutor();
+
+    @Override
+    protected void onDestroy() {
+        thumbs.shutdownNow();
+        super.onDestroy();
+    }
+
+    /** The sub-page of the wallpaper: Back, then every picture with a preview, in groups; a green check marks
+     *  the one in use. The built-in one comes first; GitHub groups appear only once downloaded. */
+    private void openWallpapers(boolean multi) {
+        navLock = true;
+        wallpaperMulti = multi;
+        subRow = multi ? slideshowCollectionChoice : wallpaperChoice;
+        subOpen = true;
+        findViewById(R.id.pageWallpaper).setVisibility(View.GONE);
+        showSubPage();
+        findViewById(R.id.subSection).setVisibility(View.GONE);
+        findViewById(R.id.subSliderCard).setVisibility(View.GONE);
+        findViewById(R.id.subDownloadCard).setVisibility(View.GONE);
+        findViewById(R.id.subChoices).setVisibility(View.GONE);
+        findViewById(R.id.subSlideshowChoices).setVisibility(View.GONE);
+        findViewById(R.id.subWallpaperScroll).setVisibility(View.VISIBLE);
+        ((TextView) findViewById(R.id.pageTitle)).setText(multi ? R.string.slideshow_collection : R.string.wallpaper_label);
+        LinearLayout list = findViewById(R.id.subWallpaperList);
+        list.removeAllViews();
+        wallpaperRows.clear();
+        float dp = getResources().getDisplayMetrics().density;
+        // Back is the first row of the list, so it scrolls away with the rest instead of staying put.
+        findViewById(R.id.subBack).setVisibility(View.GONE);
+        addBackRow(list, dp);
+
+        addWallpaperSection(list, getString(R.string.wallpapers_standard), dp);
+        addWallpaperRow(list, getString(R.string.wallpaper_default_name), DefaultWallpaper.CHOICE, null, dp);
+        for (String[] extra : DefaultWallpaper.EXTRA) addWallpaperRow(list, localName(extra[1]), extra[0], null, dp);
+
+        File dir = Config.dir(this);
+        File root = dir == null ? null : new File(dir, ThemeFiles.WALLPAPERS);
+        java.util.Map<String, List<File>> groups = new java.util.TreeMap<>();
+        List<File> loose = new ArrayList<>();
+        for (File image : WallpaperRotation.images(root)) {
+            File parent = image.getParentFile();
+            if (parent != null && !parent.equals(root)) {
+                List<File> group = groups.get(parent.getName());
+                if (group == null) groups.put(parent.getName(), group = new ArrayList<>());
+                group.add(image);
+            } else loose.add(image);
+        }
+        for (java.util.Map.Entry<String, List<File>> g : groups.entrySet()) {
+            addWallpaperSection(list, localName(g.getKey()), dp);
+            for (File image : g.getValue()) {
+                addWallpaperRow(list, localName(wallpaperLabel(image.getName())), image.getName(), image, dp);
+            }
+        }
+        if (!loose.isEmpty()) {
+            addWallpaperSection(list, getString(R.string.wallpapers_other), dp);
+            for (File image : loose) addWallpaperRow(list, localName(wallpaperLabel(image.getName())), image.getName(), image, dp);
+        }
+        markWallpaper();
+
+        TextView first = wallpaperRows.get(0);
+        TextView last = wallpaperRows.get(wallpaperRows.size() - 1);
+        last.setNextFocusDownId(last.getId());
+        TextView chosen = first;
+        for (TextView row : wallpaperRows) if (isChosenWallpaper((String) row.getTag())) chosen = row;
+        chosen.requestFocus();
+        navLock = false;
+    }
+
+    private void addWallpaperSection(LinearLayout list, String title, float dp) {
+        TextView section = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsSection), null, 0);
+        section.setText(title);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = (int) (list.getChildCount() <= 1 ? 19 * dp - (8 * dp - 12) : 14 * dp);   // (Back's own gap is the rows' now)
+        lp.bottomMargin = (int) (2 * dp);
+        section.setLayoutParams(lp);
+        list.addView(section);
+    }
+
+    private void addWallpaperRow(LinearLayout list, String label, String choice, File file, float dp) {
+        TextView row = new TextView(new android.view.ContextThemeWrapper(this, R.style.SettingsOptionRow), null, 0);
+        row.setId(View.generateViewId());
+        row.setText(label);
+        row.setTag(choice);
+        row.setCompoundDrawablePadding((int) (14 * dp));
+        row.setCompoundDrawableTintList(null);
+        row.setMinHeight((int) (52 * dp));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * dp));
+        rowParams.bottomMargin = (int) (12 * dp) - 12;
+        row.setLayoutParams(rowParams);
+        row.setOnClickListener(v -> {
+            if (wallpaperMulti) {
+                java.util.Set<String> set = new java.util.HashSet<>(slideshowSet());
+                if (!set.remove(choice)) set.add(choice);
+                choices.edit().putStringSet(SLIDESHOW_SET_KEY, set).apply();
+                changed();
+                markWallpaper();
+                return;
+            }
+            // Picking one wallpaper ends the slideshow.
+            slideshow = false;
+            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, choice).putBoolean("slideshow", false).apply();
+            changed();
+            Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
+            markWallpaper();
+        });
+        list.addView(row);
+        wallpaperRows.add(row);
+        int w = (int) (64 * dp), h = (int) (36 * dp);
+        String key = WallpaperThumbs.key(this, file, choice, w, h);
+        android.graphics.Bitmap ready = WallpaperThumbs.peek(key);
+        if (ready != null) {
+            setThumb(row, ready, w, h);   // cached: there at once, nothing to wait for
+            return;
+        }
+        thumbs.execute(() -> {
+            android.graphics.Bitmap thumb = WallpaperThumbs.load(this, key, file, choice, w, h, 5 * dp);
+            if (thumb == null) return;
+            runOnUiThread(() -> { if (!isDestroyed()) setThumb(row, thumb, w, h); });
+        });
+    }
+
+    private void setThumb(TextView row, android.graphics.Bitmap thumb, int w, int h) {
+        android.graphics.drawable.Drawable d = new android.graphics.drawable.BitmapDrawable(getResources(), thumb);
+        d.setBounds(0, 0, w, h);
+        row.setCompoundDrawablesRelative(d, null, row.getCompoundDrawablesRelative()[2], null);
+    }
+
+    private java.util.Set<String> slideshowSet() {
+        return choices.getStringSet(SLIDESHOW_SET_KEY, java.util.Collections.<String>emptySet());
+    }
+
+    private boolean isChosenWallpaper(String choice) {
+        if (wallpaperMulti) return slideshowSet().contains(choice);
+        if (slideshow) return false;
+        String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
+        if (current == null) {
+            // Nothing picked: Home shows the downloaded collection if there is one, else the built-in picture.
+            return DefaultWallpaper.CHOICE.equals(choice) && wallpaperRows.size() > 0
+                    && !hasDownloadedWallpapers();
+        }
+        return current.equals(choice);
+    }
+
+    private boolean hasDownloadedWallpapers() {
+        File dir = Config.dir(this);
+        return dir != null && !WallpaperRotation.images(new File(dir, ThemeFiles.WALLPAPERS)).isEmpty();
+    }
+
+    /** Green check on the chosen row, an empty ring on the others. */
+    private void markWallpaper() {
+        for (TextView row : wallpaperRows) {
+            android.graphics.drawable.Drawable[] d = row.getCompoundDrawablesRelative();
+            row.setCompoundDrawablesRelativeWithIntrinsicBounds(d[0], null,
+                    getDrawable(isChosenWallpaper((String) row.getTag())
+                            ? R.drawable.ic_wallpaper_checked : R.drawable.ic_wallpaper_unchecked), null);
+            if (d[0] != null) d[0].setBounds(0, 0, d[0].getBounds().width(), d[0].getBounds().height());
+        }
     }
 
     /** Off, then every app with a TV entry point by name. Saved at once; it is read on the next boot. */
@@ -452,14 +1419,6 @@ public final class LauncherSettingsActivity extends Activity {
         return base.replace('-', ' ').replace('_', ' ');
     }
 
-    private static int indexOf(List<File> images, String name) {
-        if (name == null) return -1;
-        for (int i = 0; i < images.size(); i++) {
-            if (images.get(i).getName().equals(name)) return i;
-        }
-        return -1;
-    }
-
     /**
      * A choice was saved. Home rebuilds when it next resumes because the change count moved, whether these
      * settings are left with Back or with the remote's Home button (which cancels the activity result).
@@ -472,6 +1431,11 @@ public final class LauncherSettingsActivity extends Activity {
 
     private void refresh() {
         columnsChoice.setText(getString(R.string.columns_label) + ": " + Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, columns)));
+        colorSchemeChoice.setText(getString(R.string.color_scheme_label) + ": "
+                + getString(Config.colorScheme(this) == Config.SCHEME_DARK ? R.string.color_scheme_dark
+                : Config.colorScheme(this) == Config.SCHEME_MIXED ? R.string.color_scheme_mixed : R.string.color_scheme_light));
+        tileRadiusChoice.setText(getString(R.string.tile_radius_label) + ": " + Config.tileRadius(this) + " px");
+        tileOutlineChoice.setText(getString(R.string.tile_outline_label) + ": " + getString(Config.tileOutline(this) ? R.string.yes : R.string.no));
         dockOpacityChoice.setText(getString(R.string.dock_opacity_label) + ": " + dockOpacity + "%");
         dockBlurChoice.setText(getString(R.string.dock_blur_label) + ": " + dockBlur);
         String backdropLabel = "";
@@ -479,29 +1443,61 @@ public final class LauncherSettingsActivity extends Activity {
             boolean on = BACKDROPS[i].equals(dockBackdrop);
             backdropChoices[i].setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
                     on ? R.drawable.ic_settings_check : 0, 0);
-            if (on) backdropLabel = backdropChoices[i].getText().toString();
+            if (on) backdropLabel = backdropNames[i] != null ? backdropNames[i] : backdropChoices[i].getText().toString();
         }
         dockBackdropChoice.setText(getString(R.string.dock_backdrop_label) + ": " + backdropLabel);
+        languageChoice.setText(getString(R.string.language_label) + ": " + Lang.nameOf(Lang.current(this)));
+        fontChoice.setText(getString(R.string.font_label) + ": " + UiFonts.nameOf(UiFonts.current(this)));
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
+        slideshowCollectionChoice.setText(getString(R.string.slideshow_collection_state, slideshowSet().size()));
         wallpaperChoice.setText(getString(R.string.wallpaper_state,
-                "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
+                slideshow ? getString(R.string.slideshow_label)
+                : "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : DefaultWallpaper.CHOICE.equals(wallpaperCurrent) ? getString(R.string.wallpaper_default_name)
-                        : wallpaperCurrent != null ? wallpaperLabel(wallpaperCurrent)
+                        : DefaultWallpaper.isChoice(wallpaperCurrent) ? localName(builtinName(wallpaperCurrent))
+                        : wallpaperCurrent != null ? localName(wallpaperLabel(wallpaperCurrent))
                         : getString(R.string.wallpaper_theme_default)));
+        boolean firstChosen = twoChoiceMode == 1 ? screensaverIsClock() : twoChoiceMode == 2 ? screensaverUsed() : twoChoiceMode == 3 ? Config.colorScheme(this) == Config.SCHEME_LIGHT : twoChoiceMode == 4 ? Config.tileOutline(this) : slideshow;
+        boolean schemePage = twoChoiceMode == 3;
+        int schemeMode = Config.colorScheme(this);
+        slideshowYes.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
+                firstChosen ? R.drawable.ic_settings_check : 0, 0);
+        slideshowNo.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
+                schemePage ? (schemeMode == Config.SCHEME_DARK ? R.drawable.ic_settings_check : 0)
+                        : firstChosen ? 0 : R.drawable.ic_settings_check, 0);
+        ((TextView) findViewById(R.id.slideshowThird)).setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0,
+                schemeMode == Config.SCHEME_MIXED ? R.drawable.ic_settings_check : 0, 0);
+        // "Additional settings": only on the colour scheme's page, and only for the mixed scheme.
+        findViewById(R.id.schemeAdvanced).setVisibility(schemePage && schemeMode == Config.SCHEME_MIXED ? View.VISIBLE : View.GONE);
+        // The extra rows are gone unless Mixed is chosen: Down from Mixed must then stay on Mixed, not leave focus nowhere.
+        if (schemePage) findViewById(R.id.slideshowThird).setNextFocusDownId(
+                schemeMode == Config.SCHEME_MIXED ? R.id.schemeMenuRow : R.id.slideshowThird);
+        int[] partRows = {R.id.schemeMenuRow, R.id.schemeDockRow, R.id.schemeGridRow, R.id.schemeSubRow};
+        int[] partNames = {R.string.scheme_part_menu, R.string.scheme_part_dock, R.string.scheme_part_grid, R.string.scheme_part_sub};
+        for (int i = 0; i < partRows.length; i++) {
+            ((TextView) findViewById(partRows[i])).setText(getString(partNames[i]) + ": "
+                    + getString(Config.dark(this, i) ? R.string.color_scheme_dark : R.string.color_scheme_light));
+        }
+        screensaverChoice.setText(getString(R.string.screensaver_state,
+                getString(screensaverIsClock() ? R.string.screensaver_state_clock : R.string.screensaver_state_aerial)));
+        slideshowChoice.setText(getString(R.string.slideshow_state,
+                getString(slideshow ? R.string.yes : R.string.no)));
+        slideshowIntervalChoice.setText(getString(R.string.slideshow_interval_state,
+                getString(R.string.slideshow_minutes, slideshowMinutes)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
+        profileNameChoice.setText(getString(R.string.profile_name) + ": " + Avatars.name(this));
+        String avatarNow = Avatars.avatar(this);
+        profileAvatarChoice.setText(getString(R.string.profile_avatar) + ": "
+                + (avatarNow.isEmpty() ? getString(R.string.profile_avatar_none) : avatarNow));
+        screensaverUseChoice.setText(getString(R.string.screensaver_use) + ": "
+                + getString(screensaverUsed() ? R.string.yes : R.string.no));
+        sleepTimerChoice.setText(getString(R.string.sleep_timer) + ": "
+                + getString(R.string.slideshow_minutes, SLIDESHOW_MINUTES[sleepTimerIndex()]));
+        hiddenAppsChoice.setText(getString(R.string.apps_manage_hidden) + ": " + LibraryApps.loadHidden(this).size());
         libraryShowHiddenChoice.setText(getString(R.string.library_show_hidden_state,
                 getString(libraryShowHidden ? R.string.on : R.string.off)));
-        followThemeChoice.setSelected(!hasOnTvChoices());
-    }
-
-    private boolean hasOnTvChoices() {
-        return choices.contains("columns")
-                || choices.contains("animations")
-                || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(Config.DOCK_BACKDROP_KEY) || choices.contains(Config.DOCK_BLUR_KEY)
-                || choices.contains(OpenOnStart.KEY);
     }
 
     private void open(Intent intent) {

@@ -10,7 +10,7 @@ import android.os.Bundle;
  * component is disabled in the manifest and MainActivity switches it on only while handle_view_inputs is set,
  * so a TV with its own input picker is never offered a chooser. No UI of its own (Theme.NoDisplay).
  */
-public class InputsRequestActivity extends Activity {
+public class InputsRequestActivity extends UiActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
