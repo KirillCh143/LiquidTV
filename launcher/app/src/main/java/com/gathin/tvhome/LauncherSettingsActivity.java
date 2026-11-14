@@ -326,6 +326,10 @@ public final class LauncherSettingsActivity extends Activity {
             nav[i].setOnFocusChangeListener((v, has) -> { if (has && !navLock) showPage(index); });
             nav[i].setOnClickListener(v -> showPage(index));
         }
+        // The menu's ends keep focus: Down on the last entry (Up on the first) must not slip into the page on the
+        // right; only Right or OK goes there.
+        nav[0].setNextFocusUpId(nav[0].getId());
+        nav[nav.length - 1].setNextFocusDownId(nav[nav.length - 1].getId());
         showPage(0);
     }
 
@@ -678,6 +682,13 @@ public final class LauncherSettingsActivity extends Activity {
                 else if (page == 3) libraryShowHiddenChoice.requestFocus();
                 else if (page == 4) findViewById(R.id.defaultHomeChoice).requestFocus();
                 return true;
+            }
+            // Up/Down on the page's first/last row stays there: focus search must not fall into the menu on the left
+            // (or nowhere). Only Left from the page's left edge goes back to the menu.
+            boolean down = code == android.view.KeyEvent.KEYCODE_DPAD_DOWN, up = code == android.view.KeyEvent.KEYCODE_DPAD_UP;
+            if (!inNav(f) && (down || up)) {
+                View next = f.focusSearch(down ? View.FOCUS_DOWN : View.FOCUS_UP);
+                if (next == null || inNav(next)) return true;
             }
             if (!inNav(f) && !(f instanceof StepSlider) && toNav) {
                 View next = f.focusSearch(toNav && !rtl ? View.FOCUS_LEFT : View.FOCUS_RIGHT);
