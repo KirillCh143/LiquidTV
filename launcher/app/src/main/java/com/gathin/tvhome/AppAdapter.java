@@ -343,6 +343,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         // AppLibraryActivity) and the alphabetical fallback all compete for the same dockSize slots. Truncating
         // before the Default-home tile below, not after, keeps that tile outside the count it would otherwise
         // be cut off by.
+        candidateCount = fresh.size();
         if (lockToDock && fresh.size() > dockSize) fresh.subList(dockSize, fresh.size()).clear();
         // Retain the optional Default-home tile until dependent tile-ordering work is merged.
         if (showHomeSettings
@@ -366,6 +367,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         items.clear();
         items.addAll(fresh);
         notifyDataSetChanged();
+    }
+
+    /** How many apps there were before the dock took its dockSize (see reload). */
+    private int candidateCount;
+
+    /** Home only: there are more apps than the dock holds, so the apps grid below it has something to show. */
+    boolean hasMoreAppsThanDock() {
+        return lockToDock && candidateCount > dockSize;
     }
 
     /** A banner_* drawable bundled with the launcher, or null for none or a name that is not one. */

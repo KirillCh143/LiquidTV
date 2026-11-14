@@ -265,4 +265,5 @@
     <string name="scheme_part_sub">Схема підменю</string>
     <string name="font_label">Шрифт</string>
     <string name="settings_section_language">Мова і шрифт</string>
+    <string name="more_apps_hint">Прокрутіть униз для всіх застосунків</string>
 </resources>

@@ -219,4 +219,5 @@
     <string name="scheme_part_sub">Schema dei sottomenu</string>
     <string name="font_label">Carattere</string>
     <string name="settings_section_language">Lingua e carattere</string>
+    <string name="more_apps_hint">Scorri in basso per tutte le app</string>
 </resources>

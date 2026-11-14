@@ -1212,6 +1212,22 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
+        updateMoreAppsHint();
+    }
+
+    /** The arrow and "Scroll down for all apps" under the dock: only when the dock cannot hold every app. */
+    private void updateMoreAppsHint() {
+        View hint = findViewById(R.id.moreAppsHint);
+        if (hint == null || adapter == null) return;
+        boolean more = adapter.hasMoreAppsThanDock();
+        if (more) {
+            hint.setVisibility(View.VISIBLE);
+            hint.animate().alpha(1f).setDuration(300).start();
+        } else {
+            hint.animate().cancel();
+            hint.setAlpha(0f);
+            hint.setVisibility(View.GONE);
+        }
     }
 
     /**
@@ -3633,12 +3649,11 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (200 * density));
-        if (dockRow && position < adapter.movableCount()) {
-            boolean inDock = position < COLUMNS;
-            addSettingsMenuRow(rows, popup, inDock ? R.string.tile_replace_in_dock : R.string.tile_add_to_dock,
-                    () -> startDockEditFor(key, inDock));
-        }
-        if (position < adapter.movableCount()) addSettingsMenuRow(rows, popup, R.string.tile_move, () -> {
+        // The same rows, icons and order as the menu in the apps grid (AppLibraryActivity.onTileLongPress): Rename,
+        // Move, Uninstall (red), App info. Every Home tile is a dock tile there, so no Hide row.
+        String label = adapter.labelAt(position);
+        addSettingsMenuRow(rows, popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label));
+        if (position < adapter.movableCount()) addSettingsMenuRow(rows, popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> {
             if (!beginReorder()) return;
             int at = adapter.positionOf(key);   // beginReorder can rebuild the tiles
             if (at < 0) return;
@@ -3646,11 +3661,11 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
             pickUp(at);
             Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
         });
-        // Local patch: no "Remove from Home" row any more — Home is locked to dock_apps (AppAdapter.reload),
-        // so LibraryApps' removed-set no longer affects what shows; the row would do nothing visible.
+        Intent uninstall = SystemSettings.uninstall(this, pkg);
+        if (uninstall != null) addSettingsMenuRow(rows, popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> open(uninstall));
         // Some firmware has no App info page at all; a row that only toasts "can't open" helps nobody.
         Intent info = SystemSettings.appInfo(this, pkg);
-        if (info != null) addSettingsMenuRow(rows, popup, R.string.library_app_info, () -> open(info));
+        if (info != null) addSettingsMenuRow(rows, popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> open(info));
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
         // Dock tiles sit near the bottom of the screen: open the menu above the tile when it would not fit below.
@@ -3671,9 +3686,43 @@ public class MainActivity extends UiActivity implements AppAdapter.TileListener 
         rows.getChildAt(0).requestFocus();
     }
 
+    /** Rename (the same dialog as in the apps grid): the new name shows on Home and in the grid. */
+    private void showRenameDialog(String pkg, String currentLabel) {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setText(currentLabel);
+        input.setHint(R.string.library_rename_hint);
+        input.setSingleLine(true);
+        input.setSelectAllOnFocus(true);
+        int pad = Math.round(20 * density);
+        input.setPadding(pad, pad, pad, pad);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.library_rename)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    if (LibraryNames.save(this, pkg, input.getText().toString())) reloadApps(false);
+                    else Toast.makeText(this, R.string.library_save_failed, Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addSettingsMenuRow(rows, popup, title, 0, false, action);
+    }
+
+    private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, int iconRes, boolean danger, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        ImageView rowIcon = row.findViewById(R.id.icon);
+        if (iconRes != 0) {
+            rowIcon.setImageResource(iconRes);
+            rowIcon.setVisibility(View.VISIBLE);
+        } else {
+            rowIcon.setVisibility(View.GONE);
+        }
+        if (danger) {   // red like the Power tile's label (#ED3B30), focused or not
+            rowIcon.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFED3B30));
+            ((TextView) row.findViewById(R.id.title)).setTextColor(0xFFED3B30);
+        }
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         ((TextView) row.findViewById(R.id.title)).setText(title);

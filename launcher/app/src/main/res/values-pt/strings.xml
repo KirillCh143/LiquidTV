@@ -228,4 +228,5 @@
     <string name="scheme_part_sub">Esquema dos submenus</string>
     <string name="font_label">Tipo de letra</string>
     <string name="settings_section_language">Idioma e tipo de letra</string>
+    <string name="more_apps_hint">Desloque para baixo para ver todas as apps</string>
 </resources>

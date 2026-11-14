@@ -396,6 +396,40 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- Under the dock, when there are more apps than the dock holds (MainActivity.updateMoreAppsHint). -->
+    <LinearLayout
+        android:id="@+id/moreAppsHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="11dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:alpha="0"
+        android:visibility="gone"
+        android:importantForAccessibility="no">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="6dp"
+            android:alpha="0.55"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_chevron_down"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/more_apps_hint"
+            android:textColor="#8CFFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="?attr/uiFontMedium"
+            android:shadowColor="#33000000"
+            android:shadowRadius="3"
+            android:singleLine="true" />
+    </LinearLayout>
+
     <!-- The single floating glass highlight that springs between tiles. -->
     <com.gathin.tvhome.GlassView
         android:id="@+id/glass"

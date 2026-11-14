@@ -173,4 +173,5 @@
     </plurals>
     <string name="font_label">Шрыфт</string>
     <string name="settings_section_language">Мова і шрыфт</string>
+    <string name="more_apps_hint">Прагарніце ўніз для ўсіх праграм</string>
 </resources>

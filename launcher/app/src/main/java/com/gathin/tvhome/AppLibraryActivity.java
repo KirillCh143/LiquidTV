@@ -695,18 +695,19 @@ public class AppLibraryActivity extends UiActivity implements AppAdapter.TileLis
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel);
-        addMenuRow(rows, popup, R.string.library_rename, () -> showRenameDialog(pkg, label, position));
+        addMenuRow(rows, popup, R.string.library_rename, R.drawable.ic_menu_rename, false, () -> showRenameDialog(pkg, label, position));
         String key = adapter.keyAt(position);
-        if (key != null) addMenuRow(rows, popup, R.string.tile_move, () -> requestMove(key));
+        if (key != null) addMenuRow(rows, popup, R.string.tile_move, R.drawable.ic_menu_move, false, () -> requestMove(key));
         if (!isDock) {
             boolean hidden = hiddenSet.contains(pkg);
             addMenuRow(rows, popup, hidden ? R.string.library_unhide : R.string.library_hide,
+                    hidden ? R.drawable.ic_menu_show : R.drawable.ic_menu_hide, false,
                     () -> toggleHidden(pkg, !hidden, position));
         }
         Intent uninstall = SystemSettings.uninstall(this, pkg);
-        if (uninstall != null) addMenuRow(rows, popup, R.string.library_uninstall, () -> openExternal(uninstall, label));
+        if (uninstall != null) addMenuRow(rows, popup, R.string.library_uninstall, R.drawable.ic_menu_delete, true, () -> openExternal(uninstall, label));
         Intent info = SystemSettings.appInfo(this, pkg);
-        if (info != null) addMenuRow(rows, popup, R.string.library_app_info, () -> openExternal(info, label));
+        if (info != null) addMenuRow(rows, popup, R.string.library_app_info, R.drawable.ic_tabler_info, false, () -> openExternal(info, label));
         showMenu(popup, panel, card);
     }
 
@@ -770,8 +771,22 @@ public class AppLibraryActivity extends UiActivity implements AppAdapter.TileLis
     }
 
     private void addMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addMenuRow(rows, popup, title, 0, false, action);
+    }
+
+    private void addMenuRow(LinearLayout rows, PopupWindow popup, int title, int iconRes, boolean danger, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        ImageView rowIcon = row.findViewById(R.id.icon);
+        if (iconRes != 0) {
+            rowIcon.setImageResource(iconRes);
+            rowIcon.setVisibility(View.VISIBLE);
+        } else {
+            rowIcon.setVisibility(View.GONE);
+        }
+        if (danger) {   // red like the Power tile's label (#ED3B30), focused or not
+            rowIcon.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFED3B30));
+            ((TextView) row.findViewById(R.id.title)).setTextColor(0xFFED3B30);
+        }
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         ((TextView) row.findViewById(R.id.title)).setText(title);

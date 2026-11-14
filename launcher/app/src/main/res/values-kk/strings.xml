@@ -171,4 +171,5 @@
     </plurals>
     <string name="font_label">Қаріп</string>
     <string name="settings_section_language">Тіл және қаріп</string>
+    <string name="more_apps_hint">Барлық қолданбалар үшін төмен жылжытыңыз</string>
 </resources>

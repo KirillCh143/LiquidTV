@@ -195,4 +195,5 @@
     <string name="scheme_part_sub">Schema der Untermenüs</string>
     <string name="font_label">Schriftart</string>
     <string name="settings_section_language">Sprache und Schriftart</string>
+    <string name="more_apps_hint">Nach unten für alle Apps</string>
 </resources>

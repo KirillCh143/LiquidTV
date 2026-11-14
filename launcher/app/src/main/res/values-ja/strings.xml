@@ -170,4 +170,5 @@
     </plurals>
     <string name="font_label">フォント</string>
     <string name="settings_section_language">言語とフォント</string>
+    <string name="more_apps_hint">下にスクロールしてすべてのアプリを表示</string>
 </resources>
